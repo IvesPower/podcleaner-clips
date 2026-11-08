@@ -1,0 +1,45 @@
+[project]
+name = "podcleaner-clips"
+version = "0.1.0"
+description = "Cut movie clips noted while watching, ready to play live during a podcast recording."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Julien Gaudet" }]
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "typer",
+    "platformdirs",
+    "rapidfuzz",
+    "numpy",
+    "anthropic",
+    "mlx-whisper ; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "faster-whisper ; sys_platform != 'darwin' or platform_machine != 'arm64'",
+]
+
+[project.urls]
+Repository = "https://github.com/IvesPower/podcleaner-clips"
+
+[project.scripts]
+podcleaner-clips = "podcleaner_clips.cli:main"
+
+[dependency-groups]
+dev = ["pytest", "ruff"]
+
+[build-system]
+requires = ["uv_build>=0.13.7,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+# Les blocs de code des plans sont des esquisses, pas du code à formater.
+extend-exclude = ["docs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["slow: charge un modèle Whisper"]
+addopts = "-m 'not slow'"
