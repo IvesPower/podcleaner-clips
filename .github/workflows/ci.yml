@@ -23,7 +23,12 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           enable-cache: true
-      - uses: FedericoCarboni/setup-ffmpeg@v3
+      # setup-ffmpeg ne gère que x64 : les runners macOS sont en arm64, on passe par Homebrew.
+      - if: runner.os == 'Windows'
+        uses: FedericoCarboni/setup-ffmpeg@v3
+      - if: runner.os == 'macOS'
+        run: brew install ffmpeg
+      - run: ffmpeg -version
       - run: uv sync --locked
       - run: uv run ruff check
       - run: uv run ruff format --check
