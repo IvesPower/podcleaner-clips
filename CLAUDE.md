@@ -22,6 +22,7 @@ Le hook `.claude/hooks/python_checks.py` lance Ruff et les tests rapides après 
 
 - `main` est protégée : on travaille sur une branche (`feat/…`, `fix/…`, `docs/…`, `chore/…`, `test/…`, `ci/…`) et tout arrive par une pull request, approuvée par le propriétaire (CODEOWNERS).
 - Messages de commit au format Conventional Commits : `type(portée): description`.
+- Chaque PR commence par une section `## TL;DR` : 1 à 3 phrases simples qui disent ce que change la PR et pourquoi, compréhensibles sans lire le code. Suivre `.github/pull_request_template.md` (TL;DR, Changements, Vérifications, Notes).
 - Documentation en anglais (`*.md`) et en français (`*.fr.md`) : toute modification de l'une met l'autre à jour dans la même PR. Ce fichier-ci est en français uniquement.
 - Identifiants du code en anglais ; messages affichés, clés du fichier de configuration et de l'index en français.
 
