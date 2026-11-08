@@ -10,29 +10,35 @@
 
 ## Messages de commit
 
-Les commits suivent [Conventional Commits](https://www.conventionalcommits.org/fr/) :
+Les commits suivent [Conventional Commits](https://www.conventionalcommits.org/fr/), écrits **en anglais puis en français**, pour que tout le monde puisse lire l'historique :
 
 ```
-<type>(<portée facultative>): <description>
+<type>(<portée facultative>): <English summary> / <résumé en français>
 ```
+
+Un corps facultatif contient un paragraphe en anglais, une ligne vide, puis le même paragraphe en français.
 
 Types : `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `build`, `ci`, `chore`. Un changement incompatible ajoute `!` après le type (`feat!: …`) ou un pied de page `BREAKING CHANGE:`.
 
 Exemples :
 
 ```
-feat(notes): lire les timecodes avec millisecondes
-fix(audio): garder les dialogues au downmix d'une piste 5.1
-docs: traduire le cahier des charges en anglais
+feat(notes): read timecodes with milliseconds / lire les timecodes avec millisecondes
+fix(audio): keep the dialogue when downmixing a 5.1 track / garder les dialogues au downmix d'une piste 5.1
+docs: translate the specification / traduire le cahier des charges
 ```
+
+## Titre et description de la pull request
+
+- Le **titre** suit le même format qu'un titre de commit : `type: English / français`.
+- La **description** est écrite entièrement en anglais d'abord, puis entièrement en français, séparées par `---`.
+- Chaque langue commence par un **TL;DR** : 1 à 3 phrases simples qui disent ce que change la PR et pourquoi, compréhensibles sans lire le code.
+
+Le [modèle de PR](.github/pull_request_template.md) se remplit automatiquement à l'ouverture d'une PR.
 
 ## Documentation
 
 La documentation existe en anglais et en français. Les fichiers anglais n'ont pas de suffixe (`README.md`), les fichiers français finissent par `.fr.md` (`README.fr.md`). Quand on modifie l'un, on met l'autre à jour dans la même PR, ou on indique dans la PR que la traduction reste à faire.
-
-## Description de la pull request
-
-Chaque PR commence par un **TL;DR** : 1 à 3 phrases simples qui disent ce que change la PR et pourquoi, compréhensibles sans lire le code. Le [modèle de PR](.github/pull_request_template.md) se remplit automatiquement à l'ouverture d'une PR : TL;DR, changements, vérifications, notes.
 
 ## Avant d'ouvrir une PR
 

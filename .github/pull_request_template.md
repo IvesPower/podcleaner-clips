@@ -1,26 +1,41 @@
-## TL;DR
-
 <!--
-EN: 1 to 3 sentences, in plain words: what this PR changes and why, readable without opening the code.
-FR : 1 à 3 phrases, en mots simples : ce que change cette PR et pourquoi, lisible sans ouvrir le code.
+Title / Titre : type(scope): English summary / résumé en français
+Write everything in English first, then in French below the line.
+Tout écrire en anglais d'abord, puis en français sous la ligne.
 -->
 
-## Changes / Changements
+## TL;DR
 
-<!-- EN: the main changes, one line each. FR : les changements principaux, une ligne chacun. -->
+<!-- 1 to 3 plain sentences: what this PR changes and why, readable without opening the code. -->
+
+## Changes
 
 -
 
-## Testing / Vérifications
-
-<!-- EN: commands run and their result. FR : commandes lancées et leur résultat. -->
+## Testing
 
 - [ ] `uv run ruff check`
 - [ ] `uv run pytest`
 
 ## Notes
 
-<!--
-EN: deviations from the plan, open questions, follow-ups. Delete if empty.
-FR : écarts au plan, questions ouvertes, suites à donner. À supprimer si vide.
--->
+<!-- Deviations from the plan, open questions, follow-ups. Delete if empty. -->
+
+---
+
+## TL;DR
+
+<!-- 1 à 3 phrases simples : ce que change cette PR et pourquoi, lisible sans ouvrir le code. -->
+
+## Changements
+
+-
+
+## Vérifications
+
+- [ ] `uv run ruff check`
+- [ ] `uv run pytest`
+
+## Notes
+
+<!-- Écarts au plan, questions ouvertes, suites à donner. À supprimer si vide. -->
