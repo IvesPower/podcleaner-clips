@@ -30,6 +30,10 @@ docs: translate the specification into English
 
 Docs exist in English and French. English files have no suffix (`README.md`), French files end in `.fr.md` (`README.fr.md`). When you change one, update the other in the same PR, or say in the PR that the translation is pending.
 
+## Pull request description
+
+Every PR starts with a **TL;DR**: 1 to 3 plain sentences saying what the PR changes and why, understandable without reading the code. The [PR template](.github/pull_request_template.md) is filled in automatically when you open a PR: TL;DR, changes, testing, notes.
+
 ## Before opening a PR
 
 ```bash

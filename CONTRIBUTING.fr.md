@@ -30,6 +30,10 @@ docs: traduire le cahier des charges en anglais
 
 La documentation existe en anglais et en français. Les fichiers anglais n'ont pas de suffixe (`README.md`), les fichiers français finissent par `.fr.md` (`README.fr.md`). Quand on modifie l'un, on met l'autre à jour dans la même PR, ou on indique dans la PR que la traduction reste à faire.
 
+## Description de la pull request
+
+Chaque PR commence par un **TL;DR** : 1 à 3 phrases simples qui disent ce que change la PR et pourquoi, compréhensibles sans lire le code. Le [modèle de PR](.github/pull_request_template.md) se remplit automatiquement à l'ouverture d'une PR : TL;DR, changements, vérifications, notes.
+
 ## Avant d'ouvrir une PR
 
 ```bash
