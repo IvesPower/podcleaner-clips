@@ -29,7 +29,7 @@
 - Out of scope for v1: live player, video transition effects, subtitles.
 - Code identifiers in English; displayed messages, config file keys and index keys in French.
 - Fast tests (`pytest -m "not slow"`) without a Whisper model or network; they may call ffmpeg. Tests that load Whisper are marked `slow`.
-- `main` is protected: each task is done on a branch (`feat/…`, `fix/…`, `docs/…`, `chore/…`) and lands through a pull request. Commits follow Conventional Commits.
+- `main` is protected: each task is done on a branch (`feat/…`, `fix/…`, `docs/…`, `chore/…`) and lands through a pull request. Commits follow Conventional Commits, title in English then French (`type: English / français`); the commit messages given in the tasks below only show the French part, to be completed. PR title and description: English then French (see `CONTRIBUTING.md`).
 - Docs in English (`*.md`) and French (`*.fr.md`): any change to one updates the other in the same PR. `CLAUDE.md` is in French.
 
 ## Decisions made by this plan (not fixed by the spec)
