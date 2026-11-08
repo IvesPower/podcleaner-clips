@@ -35,3 +35,7 @@ Thumbs.db
 desktop.ini
 .idea/
 .vscode/
+
+# graphify: graph rebuilt locally, never committed
+graphify-out/
+*.graphify-bak

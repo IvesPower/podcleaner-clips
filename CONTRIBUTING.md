@@ -40,6 +40,18 @@ The [PR template](.github/pull_request_template.md) is filled in automatically w
 
 Docs exist in English and French. English files have no suffix (`README.md`), French files end in `.fr.md` (`README.fr.md`). When you change one, update the other in the same PR, or say in the PR that the translation is pending.
 
+## Working with Claude Code (graphify)
+
+The repository ships a [graphify](https://github.com/Graphify-Labs/graphify) setup for Claude Code: a knowledge graph of the code that Claude queries instead of re-reading files, which keeps each session's context smaller. The code is parsed locally with tree-sitter; nothing is sent over the network.
+
+```bash
+uv tool install graphifyy    # once per machine (the package name has two y's)
+graphify update .            # build or refresh the graph in graphify-out/ (not committed)
+graphify hook install        # optional: rebuild the graph after each commit and checkout
+```
+
+The Claude Code hooks in `.claude/settings.json` call `graphify`: without it installed, Claude Code shows a non-blocking hook error and works as usual.
+
 ## Before opening a PR
 
 ```bash
