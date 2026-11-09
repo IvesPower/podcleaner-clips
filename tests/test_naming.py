@@ -22,17 +22,17 @@ def test_parse_tc_variants():
 
 
 def test_parse_tc_minutes_seconds_short_form():
-    # Sous une heure, on peut écrire MM:SS : 45:12 = 45 min 12 s.
+    # Under an hour, MM:SS is allowed: 45:12 = 45 min 12 s.
     assert parse_tc("45:12") == 2712.0
     assert parse_tc("4:05") == 245.0
     assert parse_tc("45:12.5") == 2712.5
     assert parse_tc("45:12,250") == 2712.25
-    assert parse_tc("75:30") == 4530.0  # au-delà d'une heure, toléré
+    assert parse_tc("75:30") == 4530.0  # over an hour, tolerated
 
 
 def test_parse_tc_tolerates_real_world_typing():
-    # Saisies réelles notées pendant un visionnage.
-    assert parse_tc("6;25") == 385.0  # point-virgule tapé à la place des deux-points
+    # Real input typed while watching a film.
+    assert parse_tc("6;25") == 385.0  # semicolon typed instead of a colon
     assert parse_tc("1:17;08") == 4628.0
     assert parse_tc("25 min 30") == 1530.0
     assert parse_tc("25min30") == 1530.0
@@ -85,7 +85,7 @@ def test_slugify_spec_examples():
     assert slugify("Il a une bonne tête de vainqueur") == "il-a-une-bonne-tete-de-vainqueur"
     assert slugify("Ça, c'est l'été !") == "ca-c-est-l-ete"
     assert slugify("Œuf : « oui » / non ?") == "oeuf-oui-non"
-    assert slugify("Il s’appelle") == "il-s-appelle"  # apostrophe typographique
+    assert slugify("Il s’appelle") == "il-s-appelle"  # typographic apostrophe
     assert slugify("!!!") == "extrait"
 
 
@@ -102,14 +102,14 @@ def test_slugify_truncates_a_single_overlong_word():
 def test_fallback_abbreviation():
     assert fallback_abbreviation("Le Dîner de cons") == "DDC"
     assert fallback_abbreviation("L'Auberge espagnole") == "AE"
-    assert fallback_abbreviation("Alien") == "AL"  # un seul mot : deux premières lettres
+    assert fallback_abbreviation("Alien") == "AL"  # single word: first two letters
     assert fallback_abbreviation("The Big Lebowski") == "BL"
 
 
 def test_fallback_abbreviation_is_2_to_6_chars():
     long = fallback_abbreviation("Le bon la brute et le truand du far west")
     assert long == "BLBELT"
-    assert fallback_abbreviation("La") == "LA"  # article seul : on le garde
+    assert fallback_abbreviation("La") == "LA"  # article alone: kept
     assert fallback_abbreviation("!!!") == "FILM"
 
 
@@ -117,7 +117,7 @@ def test_film_folder_name_is_windows_safe():
     assert film_folder_name("Le Dîner de cons") == "Le Diner de cons"
     assert film_folder_name("Mission: Impossible?") == "Mission Impossible"
     assert film_folder_name('A/B\\C<D>E|F*G"H') == "A B C D E F G H"
-    assert film_folder_name("Fin. ") == "Fin"  # Windows refuse point ou espace final
+    assert film_folder_name("Fin. ") == "Fin"  # Windows rejects a trailing dot or space
     assert film_folder_name("???") == "Film"
 
 

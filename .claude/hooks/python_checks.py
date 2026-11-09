@@ -1,10 +1,10 @@
-"""Hook PostToolUse : lint Ruff puis tests pytest après chaque modification d'un fichier Python.
+"""PostToolUse hook: Ruff lint then pytest after every change to a Python file.
 
-Écrit en Python pour tourner à l'identique sur macOS et Windows.
-Si le projet a un uv.lock, les outils passent par `uv run` (environnement du projet) ;
-sinon, Ruff et pytest sont pris dans le PATH, et ignorés sans erreur s'ils manquent.
-Les tests marqués `slow` (modèle Whisper) ne sont pas lancés.
-Un échec renvoie le code 2 : Claude reçoit la sortie et corrige.
+Written in Python so it runs the same on macOS and Windows.
+If the project has a uv.lock, tools run through `uv run` (the project environment);
+otherwise Ruff and pytest come from PATH, and are skipped silently if missing.
+Tests marked `slow` (Whisper model) are not run.
+A failure returns exit code 2: Claude gets the output and fixes it.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ def run(cmd: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
 
 
 def tool_cmd(name: str, project: Path) -> list[str] | None:
-    """Commande pour lancer un outil : via uv si le projet en a un, sinon PATH ou module."""
+    """Command to run a tool: through uv if the project has one, else from PATH or as a module."""
     uv = shutil.which("uv")
     if uv and (project / "uv.lock").is_file():
         return [uv, "run", "--quiet", name]
@@ -53,7 +53,7 @@ def main() -> int:
     pytest = tool_cmd("pytest", project)
     if pytest and (project / "tests").is_dir():
         tests = run([*pytest, "-q", "-x", "--no-header", "-m", "not slow"], project)
-        # Code 5 : aucun test collecté, ce n'est pas un échec.
+        # Exit code 5: no tests collected, not a failure.
         if tests.returncode not in (0, 5):
             errors.append(f"pytest :\n{tests.stdout[-4000:]}{tests.stderr[-2000:]}")
 

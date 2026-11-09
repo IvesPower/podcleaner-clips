@@ -27,8 +27,8 @@ def test_unknown_command_is_a_usage_error_without_traceback():
 
 
 def test_clips_error_exits_2_with_message():
-    # Lance le vrai point d'entrée main() dans un sous-processus, avec une commande
-    # ajoutée pour le test qui lève ClipsError.
+    # Runs the real main() entry point in a subprocess, with a command
+    # added for the test that raises ClipsError.
     script = (
         "from podcleaner_clips.cli import app, main\n"
         "from podcleaner_clips.errors import ClipsError\n"

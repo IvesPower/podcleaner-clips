@@ -16,7 +16,7 @@ app = typer.Typer(
 
 @app.callback()
 def _root() -> None:
-    """Garde les sous-commandes même quand il n'y en a qu'une."""
+    """Keeps subcommands even when there is only one."""
 
 
 config_app = typer.Typer(help="Crée ou affiche le fichier de configuration.", no_args_is_help=True)
@@ -57,8 +57,8 @@ def config_show(config_path: ConfigOption = None) -> None:
 
 
 def main() -> None:
-    # Mode autonome de Click : il gère lui-même les erreurs d'usage (code 2) ;
-    # ClipsError n'est pas une exception Click, elle remonte jusqu'ici.
+    # Click standalone mode handles usage errors itself (exit code 2);
+    # ClipsError is not a Click exception, so it propagates up to here.
     try:
         app()
     except ClipsError as exc:

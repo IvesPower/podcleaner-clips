@@ -1,7 +1,7 @@
-"""Lecture du fichier de notes pris pendant le visionnage.
+"""Reading the notes file taken while watching the film.
 
-Une ligne d'extrait commence et finit par un timecode : `27:15 ce bébé c'est une connerie 27:37`.
-L'ancienne forme `- 00:12:34 > 00:12:51 | réplique` reste acceptée. Toute autre ligne est ignorée.
+A clip line starts and ends with a timecode: `27:15 ce bébé c'est une connerie 27:37`.
+The legacy form `- 00:12:34 > 00:12:51 | réplique` is still accepted. Any other line is ignored.
 """
 
 import codecs
@@ -17,7 +17,7 @@ _LEGACY = re.compile(r"(?P<start>[^>|]+?)\s*>\s*(?P<end>[^>|]+?)\s*\|\s*(?P<ref>
 _HEADER_KEY = re.compile(r"(?P<key>fichier|abr[eé]viation)\s*:\s*(?P<value>.*)", re.IGNORECASE)
 _LEADING_SEPARATOR = re.compile(r"^[:\-–—]+\s*")
 _FRAGMENT_SEPARATOR = re.compile(r"…|\.\.\.|\s[-–—]\s")
-_MAX_TC_TOKENS = 3  # « 25 min 30 »
+_MAX_TC_TOKENS = 3  # "25 min 30"
 
 
 @dataclass(frozen=True)
@@ -40,7 +40,7 @@ class Notes:
 
 
 def split_fragments(reference: str) -> list[str]:
-    """Découpe une référence sur `…`, `...` et ` - ` (pas le tiret de « peut-être »)."""
+    """Splits a reference on `…`, `...` and ` - ` (not the hyphen in "peut-être")."""
     pieces = [p.strip() for p in _FRAGMENT_SEPARATOR.split(reference)]
     return [p for p in pieces if p] or [reference.strip()]
 
@@ -53,7 +53,7 @@ def _try_tc(text: str) -> float | None:
 
 
 def _parse_clip_line(line: str) -> tuple[float, float, str] | None:
-    """(début, fin, référence) si la ligne est une ligne d'extrait, sinon None."""
+    """(start, end, reference) if the line is a clip line, else None."""
     text = _BULLET.sub("", line.strip())
     legacy = _LEGACY.fullmatch(text)
     if legacy:
@@ -119,7 +119,7 @@ def read_notes(path: Path) -> Notes:
 
 
 def write_abbreviation(path: Path, abbr: str) -> None:
-    """Écrit ou remplace `abreviation:` dans l'en-tête, sans toucher au reste du fichier."""
+    """Writes or replaces `abreviation:` in the header, leaving the rest of the file untouched."""
     data = path.read_bytes()
     bom = data.startswith(codecs.BOM_UTF8)
     lines = data.decode("utf-8-sig").splitlines(keepends=True)

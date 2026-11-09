@@ -23,7 +23,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           enable-cache: true
-      # setup-ffmpeg ne gère que x64 : les runners macOS sont en arm64, on passe par Homebrew.
+      # setup-ffmpeg only supports x64: macOS runners are arm64, so use Homebrew.
       - if: runner.os == 'Windows'
         uses: FedericoCarboni/setup-ffmpeg@v3
       - if: runner.os == 'macOS'
