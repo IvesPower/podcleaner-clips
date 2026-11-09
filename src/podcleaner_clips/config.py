@@ -124,8 +124,7 @@ def load_settings(path: Path | None = None) -> Settings:
     path = resolve_config_path(path)
     if not path.is_file():
         raise ClipsError(
-            f"Configuration file not found: {path}\n"
-            "Create it with: podcleaner-clips config init"
+            f"Configuration file not found: {path}\nCreate it with: podcleaner-clips config init"
         )
     try:
         data = tomllib.loads(path.read_text(encoding="utf-8-sig"))
