@@ -34,7 +34,7 @@ def test_clips_error_exits_2_with_message():
         "from podcleaner_clips.errors import ClipsError\n"
         "@app.command('boom')\n"
         "def boom():\n"
-        "    raise ClipsError('Fichier introuvable : x.mkv')\n"
+        "    raise ClipsError('File not found: x.mkv')\n"
         "import sys; sys.argv = ['podcleaner-clips', 'boom']\n"
         "main()\n"
     )
@@ -42,5 +42,5 @@ def test_clips_error_exits_2_with_message():
         [sys.executable, "-c", script], capture_output=True, text=True, encoding="utf-8"
     )
     assert proc.returncode == 2
-    assert "Erreur : Fichier introuvable : x.mkv" in proc.stderr
+    assert "Error: File not found: x.mkv" in proc.stderr
     assert "Traceback" not in proc.stdout + proc.stderr

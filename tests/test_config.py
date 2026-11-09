@@ -158,7 +158,7 @@ def test_template_roundtrips(tmp_path):
 
 def test_write_template_refuses_to_overwrite(tmp_path):
     cfg = _write(tmp_path / "config.toml", "mien\n")
-    with pytest.raises(ClipsError, match="existe déjà"):
+    with pytest.raises(ClipsError, match="already exists"):
         write_template(cfg)
     assert cfg.read_text(encoding="utf-8") == "mien\n"
 
