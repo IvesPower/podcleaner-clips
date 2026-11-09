@@ -30,6 +30,16 @@ def test_parse_tc_minutes_seconds_short_form():
     assert parse_tc("75:30") == 4530.0  # au-delà d'une heure, toléré
 
 
+def test_parse_tc_tolerates_real_world_typing():
+    # Saisies réelles notées pendant un visionnage.
+    assert parse_tc("6;25") == 385.0  # point-virgule tapé à la place des deux-points
+    assert parse_tc("1:17;08") == 4628.0
+    assert parse_tc("25 min 30") == 1530.0
+    assert parse_tc("25min30") == 1530.0
+    assert parse_tc("25 min 30 s") == 1530.0
+    assert parse_tc("25 min") == 1500.0
+
+
 @pytest.mark.parametrize(
     "bad",
     [
