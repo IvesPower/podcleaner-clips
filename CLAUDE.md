@@ -36,11 +36,12 @@ Le hook `.claude/hooks/python_checks.py` lance Ruff et les tests rapides après 
 | Plateformes | macOS et Windows ; chemins via `pathlib`, jamais de chemin en dur ; texte en `encoding="utf-8"` |
 | Sans compte | Aucune clé d'API requise : chaque appel à Claude a un repli |
 | Formats d'entrée | .mkv le plus souvent, aussi .avi et .mp4 |
-| Liste des extraits | Un fichier .md de notes par film ; une ligne par extrait `- HH:MM:SS > HH:MM:SS \| réplique` (ou `MM:SS` sous une heure : `45:12`) ; les autres lignes sont ignorées |
-| Bornes des extraits | Timecodes notés approximatifs (jusqu'à ~30 s d'écart) : ils servent seulement à localiser la réplique. L'extrait est calé sur la réplique (début de sa première phrase, fin de sa dernière), au plus 4 s de contexte de chaque côté, sans couper un mot : mieux vaut un peu de marge qu'une réplique coupée |
-| Langue | Toujours la piste VF, pour l'audio comme pour la vidéo ; sans piste marquée française, la première, avec un avertissement |
+| Liste des extraits | Un fichier de notes par film ; une ligne par extrait : `TC référence TC` (ex. `27:15 ce bébé c'est une connerie 27:37`) ; `HH:MM:SS` ou `MM:SS`, `6;25` et `25 min 30` tolérés ; ancienne forme `- TC > TC \| réplique` acceptée ; les autres lignes sont ignorées |
+| Bornes des extraits | Timecodes approximatifs (~10 s) et référence partielle (quelques mots, plusieurs fragments possibles séparés par `…`, `...` ou ` - `). L'extrait reprend la scène notée : début et fin calés sur des limites de phrase à ±15 s des timecodes notés, sans couper un mot, toutes les références trouvées incluses |
+| Langue | Toujours une piste VF, VFF de préférence quand il y a aussi une VFQ (réglable) ; sans piste marquée française, la première, avec un avertissement |
+| Repérage | Sous-titres français en texte s'il y en a (hors « forcés »), puis Whisper ; coupes toujours sur les mots du doublage transcrits par Whisper |
 | Abréviation | Proposée par Claude, initiales du titre sans clé d'API, puis figée dans le fichier de notes |
-| Nommage | `{abréviation}-{numéro}-{premiers-mots-de-la-réplique}.{format}` |
+| Nommage | `{abréviation}-{numéro}-{premiers-mots-de-la-référence}.{format}` |
 | Fondus | 0,7 s à l'ouverture et à la fermeture |
 | Son de transition | Commence juste avant l'extrait ; le fondu d'ouverture se fait pendant sa fin ; même chose à l'envers en fin d'extrait |
 | Transition vidéo | Écran noir pendant le son de transition |
@@ -55,13 +56,13 @@ Le hook `.claude/hooks/python_checks.py` lance Ruff et les tests rapides après 
 | --- | --- |
 | Paquet / commande | `podcleaner_clips` / `podcleaner-clips` (`run`, `config init`, `config show`, `version`) |
 | Configuration | TOML dans `platformdirs.user_config_dir("podcleaner-clips")/config.toml`, remplaçable par `--config` ou `PODCLEANER_CLIPS_CONFIG` |
-| Dossier du film | Titre du `# ` des notes sans accents ni `<>:"/\|?*` |
+| Titre et dossier du film | Titre : `# ` des notes, sinon nom du fichier du film jusqu'à l'année (`The Night Before (2015)`) ; dossier : titre sans accents ni `<>:"/\|?*`, ≤ 60 caractères. Film : `--film` ou `fichier:` |
 | Slug | Minuscules, sans accents, mots entiers jusqu'à 40 caractères ; vide → `extrait` |
 | Abréviation de repli | Sans l'article initial, initiales en majuscules, 2 à 6 caractères |
 | Image pendant la transition | Noire tant que le son du film n'a pas commencé, pour rester synchrone |
 | Canaux | Sortie stéréo (une VF 5.1 est réduite en stéréo) ; WAV 24 bits |
-| Doute | Score < 50 : timecodes notés gardés (calés sur des mots), signalés ; 50–80 ou deux occurrences proches : signalé |
-| Rôle de Claude | Avec une clé, Claude valide chaque coupe (occurrence de la réplique, mots de début et de fin), réponse contrôlée ; sans clé, occurrence la plus proche des timecodes notés |
+| Doute | Fragment introuvable (score < 70) ou peu sûr (< 85) : signalé ; aucun fragment trouvé : timecodes notés gardés (calés sur des mots), signalés |
+| Rôle de Claude | Avec une clé, Claude choisit les bornes de chaque extrait à partir de la transcription ; réponse contrôlée (bornes à ±15 s des notes, fragments inclus) ; sans clé, limite de phrase la plus proche de chaque timecode noté |
 | Modèles | Whisper `large-v3-turbo` en `fr` ; Claude `claude-haiku-5-5` ; réglables |
 | Extraits retirés | Fichiers non supprimés, listés comme orphelins |
 

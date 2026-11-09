@@ -4,9 +4,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal :** une CLI `podcleaner-clips run notes.md` qui lit le fichier de notes d'un film, cale chaque extrait sur la réplique avec Whisper, puis écrit les extraits audio (WAV) et vidéo (MP4) avec fondus, son de transition et normalisation, plus l'index `extraits.json`.
+**Goal :** une CLI `podcleaner-clips run notes.md` qui lit le fichier de notes d'un film (timecodes approximatifs et références partielles), retrouve chaque scène notée grâce aux sous-titres et à Whisper, cale ses bornes sur des limites de phrase, puis écrit les extraits audio (WAV) et vidéo (MP4) avec fondus, son de transition et normalisation, plus l'index `extraits.json`.
 
-**Architecture :** paquet Python `src/podcleaner_clips/`. ffmpeg/ffprobe, Whisper et Claude restent en bordure, derrière des fonctions étroites ; tout ce qui décide (lecture des notes, choix de piste, calage des coupes, gabarit temporel des extraits, empreintes) est fait de fonctions pures testables sans média. Un extrait est rendu une seule fois en WAV normalisé ; le MP4 réutilise ce WAV comme bande son.
+**Architecture :** paquet Python `src/podcleaner_clips/`. ffmpeg/ffprobe, Whisper et Claude restent en bordure, derrière des fonctions étroites ; tout ce qui décide (lecture des notes, choix de piste, repérage des références, calage des coupes, gabarit temporel des extraits, empreintes) est fait de fonctions pures testables sans média. Un extrait est rendu une seule fois en WAV normalisé ; le MP4 réutilise ce WAV comme bande son.
 
 **Tech Stack :** Python 3.11–3.12, uv, Typer, platformdirs, rapidfuzz, numpy, mlx-whisper (macOS arm64) / faster-whisper (ailleurs), anthropic, ffmpeg/ffprobe (PATH), pytest, Ruff.
 
@@ -15,19 +15,21 @@
 ## Global Constraints
 
 - Tourne sur macOS et Windows ; chemins via `pathlib`, aucun chemin en dur, fichiers texte lus et écrits en `encoding="utf-8"`.
-- Aucun compte ni clé d'API requis : sans `ANTHROPIC_API_KEY`, chaque appel à Claude a un repli (initiales du titre, coupe la plus large).
+- Aucun compte ni clé d'API requis : sans `ANTHROPIC_API_KEY`, chaque appel à Claude a un repli (initiales du titre, règle simple pour les bornes).
 - Entrées : `.mkv`, `.avi`, `.mp4`.
-- Toujours la piste audio VF ; si aucune piste n'est marquée française, la première, avec un avertissement.
-- Timecodes notés approximatifs (jusqu'à ~30 s d'écart) : ils servent à localiser la réplique. L'extrait est calé sur la réplique (début de sa première phrase, fin de sa dernière phrase), avec au plus 4 s de contexte de chaque côté de la réplique, jamais au milieu d'un mot ; mieux vaut de la marge qu'une réplique coupée.
-- Timecodes acceptés : `HH:MM:SS` ou `MM:SS` (`45:12` = 45 min 12 s), décimales facultatives.
-- Un film complet n'est jamais transcrit : seulement une fenêtre autour de chaque extrait.
+- Toujours une piste audio VF, VFF de préférence quand il y a aussi une VFQ (réglable) ; si aucune piste n'est marquée française, la première, avec un avertissement.
+- Notes réelles : une ligne d'extrait = timecode de début, référence, timecode de fin. Timecodes approximatifs (~10 s d'écart) ; référence = quelques mots, pas forcément exacts, éventuellement plusieurs fragments.
+- L'extrait reprend la scène notée : début et fin calés sur des limites de phrase à ±15 s des timecodes notés, jamais au milieu d'un mot, toutes les références trouvées incluses ; mieux vaut de la marge qu'une réplique coupée.
+- Repérage : sous-titres français en texte s'il y en a (hors « forcés »), puis Whisper ; les coupes se font toujours sur les mots du doublage transcrits par Whisper.
+- Timecodes acceptés : `HH:MM:SS` ou `MM:SS` (`45:12` = 45 min 12 s), décimales facultatives ; `6;25` et `25 min 30` tolérés.
+- Un film complet n'est jamais transcrit : seulement la scène notée ±15 s.
 - Fondus : 0,7 s à l'ouverture et à la fermeture.
 - Audio : WAV 48 kHz, -16 LUFS intégré, -1 dBTP.
 - Vidéo : MP4 H.264 + AAC, même découpe et même son que l'audio ; écran noir pendant le son de transition.
-- Nommage : `{abréviation}-{numéro sur 2 chiffres}-{premiers-mots-de-la-réplique}.{wav|mp4}`.
+- Nommage : `{abréviation}-{numéro sur 2 chiffres}-{premiers-mots-de-la-référence}.{wav|mp4}`.
 - Sortie : `{dossier_episodes}/{nom-film}/audio/`, `…/video/`, `…/extraits.json`.
 - Une nouvelle exécution ne réécrit que les extraits ajoutés ou modifiés.
-- Hors périmètre v1 : lecteur en direct, effets de transition vidéo, sous-titres.
+- Hors périmètre v1 : lecteur en direct, effets de transition vidéo, incrustation de sous-titres.
 - Identifiants du code en anglais ; messages affichés, clés du fichier de configuration et de l'index en français.
 - Tests rapides (`pytest -m "not slow"`) sans modèle Whisper ni réseau ; ils peuvent appeler ffmpeg. Les tests qui chargent Whisper sont marqués `slow`.
 - `main` est protégée : chaque tâche se fait sur une branche (`feat/…`, `fix/…`, `docs/…`, `chore/…`) et arrive par une pull request. Commits au format Conventional Commits, titre en anglais puis en français (`type: English / français`) ; les messages de commit indiqués dans les tâches ci-dessous ne donnent que la partie française, à compléter. Titre et description de PR : anglais puis français (voir `CONTRIBUTING.fr.md`).
@@ -39,26 +41,32 @@
 | --- | --- |
 | Paquet / commande | `podcleaner_clips` / `podcleaner-clips` (`run`, `config init`, `config show`, `version`) |
 | Configuration | TOML dans `platformdirs.user_config_dir("podcleaner-clips")/config.toml`, remplaçable par `--config` ou `PODCLEANER_CLIPS_CONFIG` |
-| Dossier du film | Titre du `# ` du fichier de notes, sans accents et sans `<>:"/\|?*` (`Le Dîner de cons` → `Le Diner de cons`), pour éviter les soucis NFC/NFD entre Mac et Windows |
-| Slug de réplique | Minuscules, sans accents, apostrophes et ponctuation → `-`, mots entiers jusqu'à 40 caractères ; vide → `extrait` |
+| Titre du film | `# ` du fichier de notes ; sinon nom du fichier du film jusqu'à l'année entre parenthèses incluse (`The Night Before (2015) Bluray-1080p.mkv` → `The Night Before (2015)`), sinon son nom sans extension |
+| Dossier du film | Titre sans accents ni `<>:"/\|?*`, au plus 60 caractères (`Le Dîner de cons` → `Le Diner de cons`), pour éviter les soucis NFC/NFD entre Mac et Windows |
+| Slug | Tiré de la référence : minuscules, sans accents, apostrophes et ponctuation → `-`, mots entiers jusqu'à 40 caractères ; vide → `extrait` |
 | Abréviation de repli | On retire l'article initial (le, la, les, l', un, une, des, the, a, an), initiales des mots restants en majuscules, 2 à 6 caractères (`Le Dîner de cons` → `DDC`) |
 | Numéro | Ordre de la ligne dans le fichier de notes, à partir de 1 |
+| Fragments | La référence est découpée sur `…`, `...` et ` - ` ; fragments de moins de 2 mots ignorés pour la recherche |
+| Recherche floue | Par fragment, après normalisation (minuscules, sans accents ni ponctuation) : on compare le fragment à une fenêtre de texte **au moins aussi longue que lui** (mots consécutifs de la transcription, ou sous-titres consécutifs concaténés) avec `rapidfuzz.fuzz.partial_ratio` ; trouvé si score ≥ 70, sûr si ≥ 85. Sans cette condition de longueur, un sous-titre court (« Désolé ! ») obtenait 85 contre une longue référence. Mesuré sur le film d'essai : 5 fragments sur 10 retrouvés dans les sous-titres, sans faux positif ; les autres diffèrent trop du doublage et reposent sur Whisper |
+| Sous-titres | Piste de sous-titres en texte (`subrip`, `ass`, `ssa`, `mov_text`, `webvtt`) en français, hors titres contenant « forcé » / « forced » ; « complet » / « full » / « SDH » de préférence. Extraite une fois par exécution au format SRT. Un sous-titre trouvé fixe une ancre : on cherche ensuite le fragment dans la transcription à ±5 s de cette ancre |
+| Choix des bornes sans Claude | Début : début de phrase le plus proche de `noted_start` dans `[noted_start − 15, premier fragment]` ; fin : fin de phrase la plus proche de `noted_end` dans `[dernier fragment, noted_end + 15]`. Début de phrase = premier mot, mot suivant `.`, `!`, `?`, `…`, ou suivant une pause ≥ 0,6 s. Aucune limite de phrase : limite de mot la plus proche, signalée |
+| Rôle de Claude sur les coupes | Avec une clé et l'ajustement actif, Claude choisit les bornes de **chaque** extrait (mots de début et de fin) à partir de la transcription, des fragments trouvés et de la proposition heuristique. Réponse contrôlée : début dans `noted_start ± 15`, fin dans `noted_end ± 15`, tous les fragments trouvés inclus ; sinon la proposition heuristique est gardée |
+| Doute | Fragment introuvable (score < 70) ou trouvé mais pas sûr (< 85), ou deux occurrences à moins de 5 points : signalé dans le récapitulatif et l'index. Aucun fragment trouvé : timecodes notés, élargis à des limites de mots |
+| Doublage | `doublage_prefere = "VFF"` (ou `"VFQ"`). VFQ reconnue si le titre de piste contient `VFQ`, `Québec`, `Quebec` ou `Canad`, ou si la langue est `fr-CA` ; VFF si `VFF`, `France` ou `VF` seul |
+| Canaux | Sortie stéréo ; une VF 5.1 est réduite en stéréo par le downmix ffmpeg avec la voix centrale conservée |
 | Position de la transition | Le son du film commence `transition − 0,7 s` après le début, monte en 0,7 s ; la transition de fin démarre au début du fondu de fermeture. Même fichier son pour l'entrée et la sortie |
 | Image pendant la transition | Noir tant que le son du film n'a pas commencé (et après qu'il s'arrête), pour que l'image reste synchrone avec le son |
-| Canaux | Sortie stéréo ; une VF 5.1 est réduite en stéréo par le downmix ffmpeg avec la voix centrale conservée |
 | Profondeur WAV | 24 bits |
-| Doute | Score rapidfuzz < 50 : réplique introuvable, timecodes notés gardés (calés sur des limites de mots), signalés. 50–80, ou deux occurrences à moins de 5 points : douteux, signalé |
-| Rôle de Claude sur les coupes | Avec une clé et l'ajustement actif, Claude valide **chaque** coupe : il choisit l'occurrence de la réplique et les mots de début et de fin. Sa réponse est contrôlée (bornes dans la fenêtre, réplique choisie incluse) ; sinon, la coupe heuristique est gardée. Sans clé : occurrence la plus proche des timecodes notés |
 | Modèles | Whisper `large-v3-turbo` (mlx : `mlx-community/whisper-large-v3-turbo`), langue `fr` ; Claude `claude-haiku-5-5` ; les deux réglables dans la configuration |
 | Extraits retirés des notes | Leurs fichiers ne sont pas supprimés, seulement listés comme « orphelins » dans le récapitulatif |
 
 ## Review Focus
 
-1. **Fichier de notes réel** : BOM UTF-8, fins de ligne Windows, timecodes `H:MM:SS`, `MM:SS` (`45:12`) ou avec millisecondes (`00:12:34.5`, `00:12:34,500`), début ≥ fin. Les lignes conformes doivent être lues, une ligne avec début ≥ fin est une erreur signalée pour cet extrait sans arrêter les autres. Tests dans la tâche 3.
-2. **VF en 5.1** (cas courant des .mkv) : l'extrait doit sortir en stéréo, voix audible, au bon niveau. Test dans la tâche 8.
-3. **Répliques accentuées et ponctuées** : `Ça, c'est l'été !` → `ca-c-est-l-ete` ; aucun caractère interdit sous Windows dans un nom de fichier. Tests dans la tâche 2.
-4. **Vidéo anamorphique, 23,976 i/s, HEVC 10 bits** : le noir et l'image du film doivent se concaténer sans erreur ffmpeg et sortir en yuv420p lisible partout. Test dans la tâche 9.
-5. **Relance après modification** : modifier une réplique ne refait que cet extrait ; changer le son de transition refait tout ; supprimer un fichier de sortie le refait ; insérer une ligne renomme les fichiers décalés au lieu de les recalculer. Tests dans la tâche 10.
+1. **Fichier de notes réel** (d'après de vraies notes) : lignes `TC référence TC` sans puce, `6;25`, `25 min 30 :`, `1:17;08`, BOM UTF-8, fins de ligne Windows, aucun en-tête, début ≥ fin. Les lignes conformes doivent être lues ; une ligne avec début ≥ fin est une erreur signalée pour cet extrait sans arrêter les autres. Tests dans la tâche 3.
+2. **Référence approximative et timing décalé** : référence de 3 mots mal orthographiée, timecodes décalés de 10 s, deux fragments séparés par `…` sur une scène d'une minute. La scène doit être retrouvée et contenir tous les fragments. Tests dans la tâche 6.
+3. **VF en 5.1 avec VFF et VFQ** (cas du film d'essai) : la VFF est choisie, l'extrait sort en stéréo, voix audible, au bon niveau. Tests dans les tâches 5 et 8.
+4. **Vidéo anamorphique, 23,976 i/s, HEVC 10 bits, pochette `mjpeg` en piste vidéo** : le noir et l'image du film se concatènent sans erreur ffmpeg et sortent en yuv420p ; la pochette est ignorée. Tests dans les tâches 5 et 9.
+5. **Relance après modification** : modifier une référence ne refait que cet extrait ; changer le son de transition refait tout ; supprimer un fichier de sortie le refait ; insérer une ligne renomme les fichiers décalés au lieu de les recalculer. Tests dans la tâche 10.
 
 ---
 
@@ -71,18 +79,19 @@ pyproject.toml, uv.lock, CLAUDE.md
 .claude/hooks/python_checks.py           (modifié : passe par uv run)
 .claude/skills/test-rapide/SKILL.md
 .claude/skills/compat-windows/SKILL.md
-scripts/make_test_film.py                film de test (VF + VO), utilisé par les tests et le skill
+scripts/make_test_film.py                film de test (VFF + VFQ + VO, sous-titres FR), utilisé par les tests et le skill
 scripts/check_windows_compat.py
 src/podcleaner_clips/__init__.py         __version__
 src/podcleaner_clips/cli.py              app Typer : version, config, run
 src/podcleaner_clips/errors.py           ClipsError (message utilisateur, code 2)
 src/podcleaner_clips/naming.py           timecodes, slug, abréviation de repli, noms de fichiers
-src/podcleaner_clips/notes.py            lecture du fichier de notes, écriture de l'abréviation
+src/podcleaner_clips/notes.py            lecture du fichier de notes, fragments, écriture de l'abréviation
 src/podcleaner_clips/config.py           Settings + chargement TOML
-src/podcleaner_clips/media.py            ffmpeg présent, ffprobe, choix de piste, décodage de fenêtre
-src/podcleaner_clips/adjust.py           Word, recherche de réplique, calage des coupes (pur)
+src/podcleaner_clips/media.py            ffmpeg présent, ffprobe, choix des pistes, décodage de fenêtre, extraction des sous-titres
+src/podcleaner_clips/subtitles.py        lecture SRT et repérage des fragments dans les sous-titres (pur)
+src/podcleaner_clips/adjust.py           Word, repérage des fragments, calage des bornes (pur)
 src/podcleaner_clips/transcribe.py       transcription d'une fenêtre (mlx / faster-whisper)
-src/podcleaner_clips/claude.py           abréviation et choix de coupe, avec replis
+src/podcleaner_clips/claude.py           abréviation et choix des bornes, avec replis
 src/podcleaner_clips/render_audio.py     gabarit temporel, mixage, loudnorm
 src/podcleaner_clips/render_video.py     noir + image du film + bande son
 src/podcleaner_clips/index.py            extraits.json, empreintes, plan de rendu
@@ -131,13 +140,13 @@ def test_clips_error_exits_2_with_message():
 
 **Interfaces :**
 - Produces :
-  - `parse_tc(text: str) -> float` : accepte `H:MM:SS`, `HH:MM:SS` et `MM:SS` (minutes sur 1 à 3 chiffres : `45:12` = 2712 s), avec `.` ou `,` et 1 à 3 décimales ; `ValueError` sinon.
+  - `parse_tc(text: str) -> float` : accepte `H:MM:SS`, `HH:MM:SS` et `MM:SS` (minutes sur 1 à 3 chiffres : `45:12` = 2712 s), avec `.` ou `,` et 1 à 3 décimales ; tolère `;` à la place de `:` (`6;25`, `1:17;08`) et `25 min 30` / `25 min` ; `ValueError` sinon.
   - `format_tc(seconds: float) -> str` → `HH:MM:SS.mmm`.
   - `strip_accents(text: str) -> str`
   - `slugify(text: str, max_len: int = 40) -> str`
   - `fallback_abbreviation(title: str) -> str`
   - `film_folder_name(title: str) -> str`
-  - `clip_basename(abbr: str, number: int, line: str) -> str` → sans extension.
+  - `clip_basename(abbr: str, number: int, line: str) -> str` → sans extension (`line` = la référence notée).
 
 - [ ] **Step 1 : tests qui échouent**
 
@@ -188,31 +197,49 @@ def test_clip_basename():
 **Interfaces :**
 - Consumes : `parse_tc` (tâche 2).
 - Produces :
-  - `@dataclass(frozen=True) class ClipNote: number: int; start: float; end: float; line: str; source_line: int` (numéro de ligne dans le fichier, pour les messages).
-  - `@dataclass(frozen=True) class Notes: title: str; film_file: str | None; abbreviation: str | None; clips: list[ClipNote]; errors: list[str]`
-  - `read_notes(path: Path) -> Notes` : `ClipsError` si aucun titre `# `.
+  - `@dataclass(frozen=True) class ClipNote: number: int; start: float; end: float; reference: str; fragments: list[str]; source_line: int` (`reference` = texte tel que noté ; `fragments` = morceaux à rechercher ; `source_line` = numéro de ligne, pour les messages).
+  - `@dataclass(frozen=True) class Notes: title: str | None; film_file: str | None; abbreviation: str | None; clips: list[ClipNote]; errors: list[str]`
+  - `read_notes(path: Path) -> Notes`
+  - `split_fragments(reference: str) -> list[str]`
   - `write_abbreviation(path: Path, abbr: str) -> None`
 
-Règles : une ligne d'extrait est `- TC > TC | réplique`, où `TC` est tout ce qu'accepte `parse_tc` (`HH:MM:SS`, `MM:SS`…) (espaces souples, `*` accepté comme puce), n'importe où dans le fichier ; toute autre ligne est ignorée. `fichier:` et `abreviation:` (accepter aussi `abréviation:`) sont lus n'importe où avant la première ligne d'extrait. Début ≥ fin → message dans `errors` (`Ligne 7 : le début 00:12:51 n'est pas avant la fin 00:12:34`), extrait non retenu, numérotation inchangée pour les autres.
+Règles :
+- Une ligne d'extrait **commence et finit par un timecode** : `TC référence TC`. `TC` = tout ce qu'accepte `parse_tc` ; un `:` ou `-` collé après le premier timecode (`25 min 30 : …`) est retiré de la référence. L'ancienne forme `- TC > TC | référence` (puce `-` ou `*`) reste acceptée.
+- Le premier timecode se repère en essayant `parse_tc` sur le plus long préfixe plausible (jusqu'à 3 jetons : `25 min 30`), le dernier sur le plus long suffixe plausible ; la référence est ce qui reste au milieu, espaces rognés. Référence vide → erreur pour cette ligne.
+- Toute autre ligne est ignorée. `# Titre`, `fichier:` et `abreviation:` (accepter aussi `abréviation:`) sont facultatifs et lus n'importe où avant la première ligne d'extrait.
+- Début ≥ fin → message dans `errors` (`Ligne 7 : le début 00:12:51 n'est pas avant la fin 00:12:34`), extrait non retenu, numérotation inchangée pour les autres.
+- `split_fragments` : découpe sur `…`, `...` et ` - ` (tiret entouré d'espaces, pas celui de `peut-être`), rogne, garde l'ordre ; si un seul morceau, renvoie `[reference]`.
 
-- [ ] **Step 1 : tests qui échouent** (le fichier de la spec en fixture texte)
+- [ ] **Step 1 : tests qui échouent** (fixture : notes au format réel, contenu neutre)
 
 ```python
-def test_reads_spec_example(tmp_path):
-    n = read_notes(write(tmp_path, SPEC_EXAMPLE))
-    assert n.title == "Le Dîner de cons"
-    assert n.film_file == "Le Diner de cons (1998).mkv"
-    assert n.abbreviation == "DDC"
-    assert [(c.number, c.start, c.end) for c in n.clips] == [(1, 754.0, 771.0), (2, 2822.0, 2840.0)]
-    assert n.clips[0].line == "Il s'appelle Juste Leblanc"
+REAL = """\
+2:35 d'une soirée incroyable 2:51
+6;25 si tu n'es pas d'accord tu es quoi ? 6:40
+25 min 30 : ça va te remettre les idées en place 25:40
+43:00 si je veux … il va comprendre ce soir 44:08
+1:16:55 l'histoire se répète - encore une fois 1:17;08
+Notes libres : la scène du taxi est trop longue.
+"""
 
-def test_ignores_free_notes_and_bad_lines(tmp_path): ...       # "La scène du téléphone…", "- 00:12 > x" ignorées
-def test_bom_and_crlf(tmp_path): ...                             # "\ufeff# Titre\r\n- 00:00:01 > 00:00:02 | a\r\n" → 1 extrait, titre "Titre"
-def test_start_after_end_is_reported_not_fatal(tmp_path): ...   # 2 lignes, la 1re inversée → clips == [numéro 2], errors mentionne "Ligne"
-def test_missing_title_raises(tmp_path): ...
-def test_write_abbreviation_inserts_after_fichier_and_keeps_rest(tmp_path):
-    # sans ligne abreviation → ajoutée juste après "fichier:", le reste du fichier identique octet pour octet
-    # fins de ligne CRLF conservées ; si la ligne existe déjà, sa valeur est remplacée
+def test_reads_real_world_lines(tmp_path):
+    n = read_notes(write(tmp_path, REAL))
+    assert n.title is None and n.film_file is None
+    assert [(c.number, c.start, c.end) for c in n.clips] == [
+        (1, 155.0, 171.0), (2, 385.0, 400.0), (3, 1530.0, 1540.0), (4, 2580.0, 2648.0), (5, 4615.0, 4628.0)]
+    assert n.clips[2].reference == "ça va te remettre les idées en place"   # « : » retiré
+    assert n.clips[3].fragments == ["si je veux", "il va comprendre ce soir"]
+    assert n.clips[4].fragments == ["l'histoire se répète", "encore une fois"]
+
+def test_reads_legacy_format_with_header(tmp_path): ...  # exemple « Dîner de cons » avec # titre, fichier:, abreviation: et lignes « - TC > TC | réplique »
+def test_split_fragments_keeps_hyphenated_words(): ...    # "peut-être pas" → ["peut-être pas"] ; "a ... b" → ["a", "b"]
+def test_ignores_lines_without_both_timecodes(tmp_path): ...  # "2:35 sans fin", "rien 2:51", "Notes libres : …" ignorées
+def test_bom_and_crlf(tmp_path): ...                      # "﻿2:35 a b 2:51\r\n" → 1 extrait
+def test_start_after_end_is_reported_not_fatal(tmp_path): ...  # 2 lignes, la 1re inversée → clips == [numéro 2], errors mentionne "Ligne"
+def test_empty_reference_is_an_error(tmp_path): ...       # "2:35 2:51" → erreur pour la ligne
+def test_write_abbreviation_inserts_header_and_keeps_rest(tmp_path):
+    # sans ligne abreviation → ajoutée après "fichier:" ou "# titre", sinon en première ligne ;
+    # le reste du fichier identique octet pour octet ; fins de ligne CRLF conservées ; valeur remplacée si la ligne existe
 ```
 
 - [ ] **Step 2 :** lancer → FAIL. **Step 3 :** implémenter (lecture `encoding="utf-8-sig"`, `newline=""` pour garder les fins de ligne à l'écriture). **Step 4 :** lancer → PASS.
@@ -232,9 +259,10 @@ def test_write_abbreviation_inserts_after_fichier_and_keeps_rest(tmp_path):
 | `dossier_episodes` | `episodes_dir: Path` | obligatoire |
 | `dossier_films` | `films_dir: Path \| None` | aucun |
 | `son_transition` | `transition_sound: Path \| None` | aucun (obligatoire sauf `--no-transition`) |
-| `[ajustement] tolerance_s` | `tolerance_s` | 30.0 (écart maximal entre timecodes notés et réplique ; fenêtre transcrite) |
-| `[ajustement] contexte_max_s` | `context_max_s` | 4.0 (contexte maximal ajouté de chaque côté de la réplique) |
-| `[ajustement] score_min` / `score_sur` | `score_min`, `score_sure` | 50 / 80 |
+| `doublage_prefere` | `preferred_dub: str` | `"VFF"` (ou `"VFQ"`) |
+| `[ajustement] tolerance_s` | `tolerance_s` | 15.0 (écart admis entre timecode noté et borne retenue ; marge transcrite de chaque côté) |
+| `[ajustement] sous_titres` | `use_subtitles` | true |
+| `[ajustement] score_trouve` / `score_sur` | `score_found`, `score_sure` | 70 / 85 |
 | `[ajustement] pause_phrase_s` | `sentence_gap_s` | 0.6 |
 | `[ajustement] marge_avant_s` / `marge_apres_s` | `pad_before_s`, `pad_after_s` | 0.10 / 0.25 |
 | `[ajustement] modele_whisper` | `whisper_model` | `large-v3-turbo` |
@@ -244,13 +272,13 @@ def test_write_abbreviation_inserts_after_fichier_and_keeps_rest(tmp_path):
 
 Résolution du chemin : argument > `PODCLEANER_CLIPS_CONFIG` > `default_config_path()`. `~` développé. Fichier absent → `ClipsError` qui donne le chemin attendu et la commande `podcleaner-clips config init`.
 
-- [ ] **Step 1 : tests qui échouent** : `test_defaults_applied`, `test_env_var_overrides_default_path` (monkeypatch), `test_missing_file_message_mentions_config_init`, `test_unknown_key_is_an_error` (faute de frappe → `ClipsError` qui nomme la clé), `test_paths_with_accents_and_tilde`, `test_template_roundtrips` (`write_template` puis `load_settings` après avoir rempli `dossier_episodes`).
+- [ ] **Step 1 : tests qui échouent** : `test_defaults_applied`, `test_env_var_overrides_default_path` (monkeypatch), `test_missing_file_message_mentions_config_init`, `test_unknown_key_is_an_error` (faute de frappe → `ClipsError` qui nomme la clé), `test_preferred_dub_must_be_vff_or_vfq`, `test_paths_with_accents_and_tilde`, `test_template_roundtrips` (`write_template` puis `load_settings` après avoir rempli `dossier_episodes`).
 - [ ] **Step 2 :** FAIL. **Step 3 :** implémenter avec `tomllib`. Modèle de fichier commenté en français. **Step 4 :** PASS.
 - [ ] **Step 5 :** commit `feat: configuration par personne`.
 
 ---
 
-### Task 5 : analyse du film et choix de piste
+### Task 5 : analyse du film, choix des pistes, sous-titres
 
 **Files :** Create `src/podcleaner_clips/media.py`, `scripts/make_test_film.py`, `tests/conftest.py`, `tests/test_media.py`
 
@@ -258,80 +286,119 @@ Résolution du chemin : argument > `PODCLEANER_CLIPS_CONFIG` > `default_config_p
 - Produces :
   - `require_ffmpeg() -> None` : `ClipsError("ffmpeg est introuvable. Installez-le (macOS : brew install ffmpeg ; Windows : winget install ffmpeg) puis relancez.")` si `ffmpeg` ou `ffprobe` manque.
   - `@dataclass(frozen=True) class AudioTrack: index: int` (rang parmi les pistes audio, pour `-map 0:a:N`) `; language: str | None; title: str | None; channels: int`
+  - `@dataclass(frozen=True) class SubtitleTrack: index: int` (rang parmi les pistes de sous-titres, pour `-map 0:s:N`) `; language: str | None; title: str | None; codec: str`
   - `@dataclass(frozen=True) class VideoInfo: width: int; height: int; fps: str` (fraction ffprobe, ex. `24000/1001`) `; sar: str`
-  - `@dataclass(frozen=True) class MediaInfo: duration: float; audio: list[AudioTrack]; video: VideoInfo | None` (première vidéo hors `attached_pic`)
+  - `@dataclass(frozen=True) class MediaInfo: duration: float; audio: list[AudioTrack]; subtitles: list[SubtitleTrack]; video: VideoInfo | None` (première vidéo hors `attached_pic`)
   - `probe(path: Path) -> MediaInfo`
-  - `choose_audio_track(tracks: list[AudioTrack], forced: int | None) -> tuple[AudioTrack, str | None]` : renvoie la piste et un avertissement en français, ou `None`.
+  - `choose_audio_track(tracks: list[AudioTrack], forced: int | None, preferred_dub: str = "VFF") -> tuple[AudioTrack, str | None]` : la piste et un avertissement en français, ou `None`.
+  - `choose_subtitle_track(tracks: list[SubtitleTrack]) -> SubtitleTrack | None`
+  - `extract_subtitles(path: Path, track: SubtitleTrack) -> str` : texte SRT via `ffmpeg -map 0:s:N -f srt -`.
   - `decode_window(path: Path, track: int, start: float, duration: float) -> np.ndarray` : mono 16 kHz float32 via `ffmpeg -ss … -t … -map 0:a:N -ac 1 -ar 16000 -f f32le -`.
-  - `scripts/make_test_film.py` : `make_test_film(out: Path, duration: float = 12.0, *, vf_channels: int = 2, video: str = "h264") -> Path` (`video` : `"h264"` ou `"hevc10_anamorphic"`, ce dernier ajouté en tâche 9) ; .mkv avec mire, piste 0 VO (`eng`, sinus 440 Hz), piste 1 VF (`fre`, sinus 660 Hz, titre « VF »). Exécutable en script : `python scripts/make_test_film.py out.mkv`.
+  - `scripts/make_test_film.py` : `make_test_film(out: Path, duration: float = 12.0, *, vf_channels: int = 2, video: str = "h264", subtitles: str | None = None) -> Path` (`video` : `"h264"` ou `"hevc10_anamorphic"`, ce dernier ajouté en tâche 9 ; `subtitles` : contenu SRT ajouté en piste `fre` « Complets ») ; .mkv avec mire, piste 0 VFF (`fre`, sinus 660 Hz, titre « Français VFF »), piste 1 VO (`eng`, sinus 440 Hz), piste 2 VFQ (`fre`, sinus 880 Hz, titre « Français VFQ »), pochette `mjpeg` en `attached_pic`. Exécutable en script : `python scripts/make_test_film.py out.mkv`.
 
-Règles de `choose_audio_track` : `forced` hors bornes → `ClipsError` qui liste les pistes ; sinon première piste dont la langue est `fre`/`fra`/`fr` ou dont le titre contient `VF`, `VFF`, `VFQ`, `French` ou `Français` (insensible à la casse) ; sinon la première, avec l'avertissement `Aucune piste marquée française : piste 0 prise. Pistes : 0 eng « … » 2 canaux, 1 ? … Choisissez avec --audio-track N.`
+Règles de `choose_audio_track` : `forced` hors bornes → `ClipsError` qui liste les pistes ; sinon, parmi les pistes françaises (langue `fre`/`fra`/`fr`/`fr-CA`, ou titre contenant `VF`, `Français`, `French`), la première qui correspond à `preferred_dub` (voir « Doublage » dans les décisions), sinon la première française ; aucune française → la première, avec l'avertissement `Aucune piste marquée française : piste 0 prise. Pistes : 0 eng « … » 6 canaux, 1 ? … Choisissez avec --audio-track N.`
 
 - [ ] **Step 1 : tests qui échouent**
 
 ```python
-def test_prefers_french_by_language(): ...          # [eng, fre] → index 1, pas d'avertissement
+def test_prefers_vff_when_vff_and_vfq_exist(): ...  # [fre "Français VFF", eng, fre "Français VFQ"] → index 0 ; preferred_dub="VFQ" → index 2
+def test_detects_vfq_from_language_tag(): ...       # [fre "Français", fr-CA ""] + "VFQ" → index 1
 def test_prefers_french_by_title_when_untagged(): ... # [None "English", None "VFF 5.1"] → index 1
 def test_falls_back_to_first_with_warning(): ...    # [None, None] → index 0, avertissement contient "--audio-track"
 def test_forced_out_of_range_lists_tracks(): ...
+def test_chooses_full_french_text_subtitles(): ...  # [fre "Forcés" subrip, fre "Complets" subrip, eng subrip, fre "" hdmv_pgs_subtitle] → la piste « Complets »
+def test_no_usable_subtitles(): ...                 # que des sous-titres image ou anglais → None
 def test_probe_test_film(test_film):                # fixture conftest
     info = probe(test_film)
-    assert abs(info.duration - 12.0) < 0.1 and [t.language for t in info.audio] == ["eng", "fre"]
+    assert abs(info.duration - 12.0) < 0.1 and [t.language for t in info.audio] == ["fre", "eng", "fre"]
+    assert info.video is not None and info.video.width == 320       # la pochette n'est pas prise pour la vidéo
+def test_extract_subtitles_roundtrip(tmp_path): ... # make_test_film(subtitles=SRT) → extract_subtitles contient le texte d'origine
 def test_decode_window_length(test_film):
-    assert len(decode_window(test_film, 1, 2.0, 3.0)) == pytest.approx(48000, abs=160)
+    assert len(decode_window(test_film, 0, 2.0, 3.0)) == pytest.approx(48000, abs=160)
 def test_paths_with_spaces_and_accents(tmp_path): ... # film dans "Films été/Le Dîner (1998).mkv"
 def test_missing_ffmpeg_message(monkeypatch): ...   # shutil.which → None ; message contient "brew install ffmpeg"
 ```
 
 - [ ] **Step 2 :** FAIL. **Step 3 :** implémenter (`ffprobe -v error -print_format json -show_format -show_streams`). **Step 4 :** PASS.
-- [ ] **Step 5 :** commit `feat: analyse du film et choix de la piste VF`.
+- [ ] **Step 5 :** commit `feat: analyse du film, choix de la VF et des sous-titres`.
 
 ---
 
-### Task 6 : calage des coupes (logique pure)
+### Task 5b : repérage dans les sous-titres (logique pure)
 
-**Files :** Create `src/podcleaner_clips/adjust.py`, `tests/test_adjust.py`
+**Files :** Create `src/podcleaner_clips/subtitles.py`, `tests/test_subtitles.py`
 
 **Interfaces :**
 - Consumes : `Settings` (tâche 4).
 - Produces :
-  - `@dataclass(frozen=True) class Word: text: str; start: float; end: float` (temps absolus dans le film).
-  - `@dataclass(frozen=True) class Match: first: int; last: int; score: float` (indices dans la liste de mots).
-  - `find_line(words: list[Word], line: str) -> list[Match]` : triées par score décroissant.
-  - `@dataclass(frozen=True) class Cut: start: float; end: float; method: str` (`"notes"`, `"whisper"`, `"claude"`) `; score: float | None; doubt: str | None` (raison en français, `None` si sûr).
-  - `@dataclass(frozen=True) class Decision: cut: Cut; needs_review: bool; matches: list[Match]`
-  - `adjust_cut(words: list[Word], line: str, noted_start: float, noted_end: float, s: Settings) -> Decision` (`words` couvre la fenêtre `[noted_start − tolerance_s, noted_end + tolerance_s]`)
-  - `cut_from_words(words: list[Word], first: int, last: int, noted_start: float, noted_end: float, s: Settings) -> Cut` : réutilisé par la tâche 7 pour appliquer l'avis de Claude.
+  - `@dataclass(frozen=True) class Cue: start: float; end: float; text: str` (texte sans balises `<i>`, `{\an8}`, sauts de ligne remplacés par des espaces).
+  - `parse_srt(text: str) -> list[Cue]` : tolère BOM, CRLF, numéros manquants, blocs vides.
+  - `normalize(text: str) -> str` : minuscules, sans accents, ponctuation et apostrophes → espace, espaces réduits. Partagé avec la tâche 6.
+  - `@dataclass(frozen=True) class Anchor: fragment: str; start: float; end: float; score: float`
+  - `find_anchors(cues: list[Cue], fragments: list[str], noted_start: float, noted_end: float, s: Settings) -> list[Anchor]` : pour chaque fragment, le meilleur sous-titre de départ (les sous-titres suivants sont concaténés jusqu'à atteindre la longueur du fragment, pour un fragment à cheval) dans `[noted_start − tolerance_s, noted_end + tolerance_s]`, avec `rapidfuzz.fuzz.partial_ratio` sur les textes normalisés ; gardé si score ≥ `score_found`. À score égal (± 5), le plus proche du milieu de la plage notée.
 
-Algorithme :
-- Normalisation pour la comparaison : minuscules, sans accents, ponctuation et apostrophes → espace.
-- `find_line` : pour chaque position, fenêtres de `n-2` à `n+2` mots (`n` = mots de la réplique), `rapidfuzz.fuzz.ratio` sur les textes joints ; garder la meilleure fenêtre par position de départ, puis retirer les fenêtres qui en chevauchent une mieux notée.
-- Fin de phrase : mot finissant par `.`, `!`, `?`, `…`, ou suivi d'une pause ≥ `sentence_gap_s`.
-- `adjust_cut` : les timecodes notés ne servent qu'à localiser la réplique ; les bornes viennent de la réplique.
-  - Choix de l'occurrence : parmi les `Match` de score ≥ `score_min` dont le début est dans `[noted_start − tolerance_s, noted_end + tolerance_s]`, la meilleure ; à moins de 5 points d'écart, la plus proche du milieu des timecodes notés.
-  - Aucune : `Cut` sur les timecodes notés, chacun déplacé vers l'extérieur jusqu'à une limite de mot (jamais au milieu d'un mot), méthode `"notes"`, `doubt = "réplique introuvable"`.
-  - Début : premier mot de la phrase où commence la réplique, sans remonter plus de `context_max_s` avant le premier mot de la réplique (si la limite tombe dans la phrase, au premier mot entier après la limite, `doubt = "début de phrase au-delà de 4 s"`) ; puis `− pad_before_s`, sans entrer dans le mot précédent.
-  - Fin symétrique : dernier mot de la phrase où finit la réplique, au plus `context_max_s` après le dernier mot de la réplique (sinon `doubt = "fin de phrase au-delà de 4 s"`) ; puis `+ pad_after_s`, sans entrer dans le mot suivant.
-  - `needs_review = True` si `score_min ≤ score < score_sure`, ou si deux `Match` ont un score à moins de 5 points ; `doubt` explique pourquoi.
-
-- [ ] **Step 1 : tests qui échouent** (listes de `Word` écrites à la main)
+- [ ] **Step 1 : tests qui échouent**
 
 ```python
-def test_exact_line_snaps_to_sentence_bounds(): ...
-    # "Bonjour. Il s'appelle Juste Leblanc. Ah bon ?" ; notes 10.3 > 12.0 coupent "Il" et "Leblanc"
-    # → start == début de "Il" - 0.10, end == fin de "Leblanc." + 0.25, method "whisper", doubt None
-def test_loose_notes_25s_off_still_find_line(): ... # notes 25 s avant la réplique → mêmes bornes que si les notes étaient justes
-def test_bounds_follow_line_not_notes(): ...      # notes larges (10 s autour) → l'extrait se resserre sur la phrase de la réplique
-def test_context_capped_at_4s(): ...              # phrase de 8 s après la réplique → end = fin d'un mot entier ≤ fin de réplique + 4, doubt rempli
-def test_line_beyond_tolerance_is_not_used(): ...  # réplique à 40 s des notes → méthode "notes", doubt "réplique introuvable"
-def test_padding_does_not_enter_neighbour_word(): ... # mot précédent finit 0.05 s avant → start == sa fin
-def test_unrecognised_line_keeps_noted_on_word_bounds(): ...  # score < 50 → Cut(notes élargies aux limites de mots, "notes", doubt="réplique introuvable")
-def test_misheard_line_needs_review(): ...    # "Il s'appelle juste le blanc" vs "Juste Leblanc" → 50 ≤ score < 80, needs_review
-def test_repeated_line_picks_closest_and_needs_review(): ...
+def test_parse_srt_strips_tags_and_joins_lines(): ...  # "<i>Salut</i>\nça va ?" → "Salut ça va ?"
+def test_parse_srt_tolerates_bom_crlf_and_gaps(): ...
+def test_anchor_found_despite_approximate_reference(): ...  # sous-titre « Ce bébé, c'est une connerie. » ; fragment « ce bebe cest une connerie » → score ≥ 85
+def test_anchor_limited_to_tolerance_window(): ...     # même texte à 40 s de la plage notée → ignoré
+def test_anchor_spanning_two_cues(): ...               # fragment coupé entre deux sous-titres consécutifs → trouvé, start du 1er, end du 2e
+def test_repeated_line_prefers_closest_to_notes(): ...
+def test_short_cue_does_not_match_long_fragment(): ... # « Désolé ! » contre « un juif a encore crucifié le messie » → pas d'ancre sur « Désolé ! »
 ```
 
 - [ ] **Step 2 :** FAIL. **Step 3 :** implémenter. **Step 4 :** PASS.
-- [ ] **Step 5 :** commit `feat: calage des coupes sur la réplique`.
+- [ ] **Step 5 :** commit `feat: repérage des références dans les sous-titres`.
+
+---
+
+### Task 6 : calage des bornes (logique pure)
+
+**Files :** Create `src/podcleaner_clips/adjust.py`, `tests/test_adjust.py`
+
+**Interfaces :**
+- Consumes : `Settings` (tâche 4), `normalize`, `Anchor` (tâche 5b).
+- Produces :
+  - `@dataclass(frozen=True) class Word: text: str; start: float; end: float` (temps absolus dans le film).
+  - `@dataclass(frozen=True) class Match: fragment: str; first: int; last: int; score: float` (indices dans la liste de mots).
+  - `find_fragments(words: list[Word], fragments: list[str], anchors: list[Anchor], noted_start: float, noted_end: float, s: Settings) -> list[Match | None]` : un résultat par fragment, `None` si introuvable.
+  - `sentence_starts(words: list[Word], s: Settings) -> list[int]` et `sentence_ends(words: list[Word], s: Settings) -> list[int]` : indices des mots qui commencent / finissent une phrase.
+  - `@dataclass(frozen=True) class Cut: start: float; end: float; method: str` (`"notes"`, `"whisper"`, `"claude"`) `; score: float | None; doubt: str | None` (raison en français, `None` si sûr).
+  - `@dataclass(frozen=True) class Decision: cut: Cut; matches: list[Match | None]; first_word: int | None; last_word: int | None`
+  - `adjust_cut(words: list[Word], fragments: list[str], anchors: list[Anchor], noted_start: float, noted_end: float, s: Settings) -> Decision` (`words` couvre `[noted_start − tolerance_s, noted_end + tolerance_s]`).
+  - `cut_from_words(words: list[Word], first: int, last: int, s: Settings) -> Cut` : bornes depuis deux indices de mots, avec marges ; réutilisé par la tâche 7.
+  - `bounds_ok(words: list[Word], first: int, last: int, matches: list[Match | None], noted_start: float, noted_end: float, s: Settings) -> bool` : début dans `noted_start ± tolerance_s`, fin dans `noted_end ± tolerance_s`, tous les fragments trouvés inclus, `first ≤ last`. Réutilisé par la tâche 7.
+
+Algorithme :
+- `find_fragments` : pour chaque fragment, fenêtres de `n−1` à `n+2` mots de la transcription (`n` = mots du fragment), au moins aussi longues que le fragment en caractères, score `fuzz.partial_ratio` sur les textes normalisés. S'il y a une ancre pour ce fragment, on ne cherche qu'à ±5 s de l'ancre ; sinon dans toute la fenêtre. Trouvé si score ≥ `score_found` ; parmi les ex æquo (± 5 points), le plus proche de l'ancre, sinon du milieu de la plage notée.
+- `adjust_cut` :
+  - Aucun fragment trouvé : `Cut` sur les timecodes notés, chacun déplacé vers l'extérieur jusqu'à une limite de mot, méthode `"notes"`, `doubt = "référence introuvable"`.
+  - Début : parmi `sentence_starts` dont le mot commence dans `[noted_start − tolerance_s, noted_start + tolerance_s]` et au plus tard au premier mot du premier fragment trouvé, celui le plus proche de `noted_start`. Aucun : début du mot le plus proche de `noted_start` (sans dépasser le premier fragment), `doubt = "pas de début de phrase près du timecode noté"`.
+  - Fin symétrique avec `sentence_ends`, `noted_end` et le dernier mot du dernier fragment trouvé.
+  - Marges : `cut_from_words` applique `− pad_before_s` / `+ pad_after_s` sans entrer dans le mot voisin.
+  - Fragment introuvable alors que d'autres le sont, ou score < `score_sure` : `doubt` le dit (« fragment introuvable : … », « référence peu sûre : … »). Méthode `"whisper"`.
+
+- [ ] **Step 1 : tests qui échouent** (listes de `Word` écrites à la main, une scène d'environ 60 s)
+
+```python
+def test_scene_kept_with_short_reference(): ...
+    # notes 27:15 > 27:37, référence « ce bébé c'est une connerie » vers 27:20 → l'extrait garde ~22 s,
+    # début = début de phrase le plus proche de 27:15, fin = fin de phrase la plus proche de 27:37
+def test_notes_10s_late_still_snap_to_sentences(): ...   # vraies phrases 10 s avant les notes → bornes sur ces phrases, fragment inclus
+def test_two_fragments_both_included(): ...              # « si je veux … il va comprendre ce soir » sur 68 s → les deux dans l'extrait
+def test_end_extended_to_include_late_fragment(): ...    # fragment qui finit 4 s après noted_end → fin après lui
+def test_misspelled_reference_found(): ...               # « tu as été plus solide qu'un rock » vs transcription « plus solide qu'un roc » → trouvé
+def test_anchor_restricts_search(): ...                  # fragment présent deux fois ; l'ancre désigne le 2e → match sur le 2e
+def test_never_cuts_a_word(): ...                        # bornes toujours sur des débuts / fins de mots, marges sans chevaucher les voisins
+def test_unfound_reference_keeps_notes_on_word_bounds(): ... # → méthode "notes", doubt "référence introuvable"
+def test_partially_found_reference_is_flagged(): ...     # 1 fragment sur 2 trouvé → méthode "whisper", doubt cite le fragment manquant
+def test_bounds_ok_rejects_cut_missing_a_fragment(): ...
+```
+
+- [ ] **Step 2 :** FAIL. **Step 3 :** implémenter. **Step 4 :** PASS.
+- [ ] **Step 5 :** commit `feat: calage des bornes sur la scène notée`.
 
 ---
 
@@ -342,16 +409,16 @@ def test_repeated_line_picks_closest_and_needs_review(): ...
 Charger le skill `claude-api` avant d'écrire `claude.py`.
 
 **Interfaces :**
-- Consumes : `decode_window` (tâche 5), `Word`, `Decision`, `cut_from_words` (tâche 6), `fallback_abbreviation` (tâche 2), `Settings`.
+- Consumes : `decode_window` (tâche 5), `Word`, `Decision`, `cut_from_words`, `bounds_ok` (tâche 6), `fallback_abbreviation` (tâche 2), `Settings`.
 - Produces :
   - `class Transcriber(Protocol): def words(self, audio: np.ndarray, offset: float) -> list[Word]`
   - `make_transcriber(model: str) -> Transcriber` : mlx-whisper sur macOS arm64, faster-whisper (`compute_type="int8"`) ailleurs ; `language="fr"`, `word_timestamps=True` ; modèle chargé une seule fois par exécution, au premier appel. `offset` est ajouté aux temps pour obtenir des temps absolus.
   - `@dataclass(frozen=True) class ClaudeAdvice: kind: str; answer: str; reason: str; model: str` (écrit tel quel dans l'index).
-  - `class ClaudeClient` : `available: bool` (clé présente et `claude_enabled`) ; `propose_abbreviation(title: str, film_file: str | None) -> tuple[str, ClaudeAdvice | None]` ; `review_cut(words: list[Word], line: str, noted_start: float, noted_end: float, decision: Decision, s: Settings) -> tuple[Cut, ClaudeAdvice | None]`.
+  - `class ClaudeClient` : `available: bool` (clé présente et `claude_enabled`) ; `propose_abbreviation(title: str, film_file: str | None) -> tuple[str, ClaudeAdvice | None]` ; `choose_bounds(words: list[Word], reference: str, decision: Decision, noted_start: float, noted_end: float, s: Settings) -> tuple[Cut, ClaudeAdvice | None]`.
 
 Règles :
 - Abréviation : réponse attendue `^[A-Z0-9]{2,6}$` ; indisponible, erreur réseau ou réponse invalide → `fallback_abbreviation(title)` et `None`.
-- Coupe : appelée pour **chaque** extrait quand Claude est disponible et l'ajustement actif (pas seulement si `needs_review`). Envoi des mots numérotés avec leurs temps, de la réplique, des timecodes notés (en précisant qu'ils sont approximatifs, ±30 s), des occurrences trouvées et de la coupe heuristique ; réponse structurée (tool use) `{premier_mot: int, dernier_mot: int, raison: str}` ; conversion par `cut_from_words` avec `method="claude"`. Indices hors bornes, début ≥ fin, ou extrait qui ne contient aucune occurrence de la réplique de score ≥ `score_min` → coupe de `decision` gardée. Indisponible → coupe de `decision`, `doubt` conservé.
+- Bornes : appelé pour **chaque** extrait quand Claude est disponible et l'ajustement actif. Envoi des mots numérotés avec leurs temps, de la référence telle que notée, des timecodes notés (en précisant qu'ils sont approximatifs, ±15 s, et que l'extrait doit reprendre la scène notée), des fragments trouvés et de la proposition heuristique. Réponse structurée (tool use) `{premier_mot: int, dernier_mot: int, raison: str}` ; acceptée seulement si `bounds_ok`, puis convertie par `cut_from_words` avec `method="claude"` ; sinon coupe de `decision`. Indisponible → coupe de `decision`, `doubt` conservé.
 - Une erreur de l'API n'arrête jamais l'exécution : un avertissement, puis le repli.
 
 - [ ] **Step 1 : tests qui échouent** (`test_claude.py` avec un faux client Anthropic injecté, sans réseau)
@@ -360,13 +427,13 @@ Règles :
 def test_abbreviation_without_key_uses_initials(monkeypatch): ...  # ANTHROPIC_API_KEY absent → ("DDC", None)
 def test_abbreviation_invalid_answer_falls_back(): ...           # faux client répond "Le dîner" → "DDC"
 def test_abbreviation_valid_answer(): ...                         # "DDC" → ("DDC", advice.kind == "abreviation")
-def test_review_cut_applies_claude_choice(): ...                  # indices 3..7 → Cut.method == "claude"
-def test_review_cut_rejects_out_of_bounds(): ...                  # indice 999 → coupe d'origine
-def test_review_cut_rejects_cut_without_the_line(): ...           # mots choisis hors réplique → coupe d'origine
+def test_choose_bounds_applies_claude_choice(): ...               # indices valides → Cut.method == "claude"
+def test_choose_bounds_rejects_out_of_bounds(): ...               # indice 999 → coupe d'origine
+def test_choose_bounds_rejects_cut_missing_a_fragment(): ...      # bornes qui excluent un fragment trouvé → coupe d'origine
 def test_api_error_falls_back_with_warning(): ...                 # faux client lève anthropic.APIError
 ```
 
-Et `test_transcribe.py` (marqué `slow`, ignoré sans `say` sous macOS) : générer `say -v Thomas "Bonjour. Il s'appelle Juste Leblanc."`, transcrire, vérifier que `find_line(words, "Il s'appelle Juste Leblanc")[0].score >= 80` et que les temps sont croissants.
+Et `test_transcribe.py` (marqué `slow`, ignoré sans `say` sous macOS) : générer `say -v Thomas "Bonjour. Il s'appelle Juste Leblanc."`, transcrire, vérifier que `find_fragments(words, ["juste leblanc"], [], 0, 5, s)[0].score >= 85` et que les temps sont croissants.
 - [ ] **Step 2 :** FAIL. **Step 3 :** implémenter. **Step 4 :** `uv run pytest` puis `uv run pytest -m slow tests/test_transcribe.py` → PASS.
 - [ ] **Step 5 :** commit `feat: transcription par fenêtre et avis de Claude`.
 
@@ -453,7 +520,7 @@ Schéma `extraits.json` :
   "film": {"titre": "...", "abreviation": "DDC", "fichier": "...", "piste_audio": {"index": 1, "langue": "fre", "titre": "VF"}},
   "avis_claude": [{"type": "abreviation", "reponse": "DDC", "raison": "...", "modele": "claude-haiku-5-5"}],
   "extraits": [{
-    "numero": 1, "replique": "...", "empreinte": "…",
+    "numero": 1, "reference": "...", "fragments_trouves": ["..."], "empreinte": "…",
     "notes": {"debut": "00:12:34.000", "fin": "00:12:51.000"},
     "retenu": {"debut": "00:12:33.420", "fin": "00:12:51.880", "methode": "whisper", "score": 96.2, "doute": null},
     "avis_claude": null,
@@ -475,7 +542,7 @@ def test_transition_sha_change_invalidates_all(): ...
 def test_deleted_output_file_is_missing_kind(tmp_path): ...
 def test_inserted_line_renames_shifted_clips(tmp_path): ... # nouvelle ligne en 1 → ancien 01 devient "renomme" vers 02
 def test_removed_line_reported_as_orphan(tmp_path): ...
-def test_index_roundtrip_utf8(tmp_path): ...              # réplique accentuée relue à l'identique, fichier lisible en UTF-8
+def test_index_roundtrip_utf8(tmp_path): ...              # référence accentuée relue à l'identique, fichier lisible en UTF-8
 ```
 
 - [ ] **Step 2 :** FAIL. **Step 3 :** implémenter. **Step 4 :** PASS.
@@ -490,15 +557,15 @@ def test_index_roundtrip_utf8(tmp_path): ...              # réplique accentuée
 **Interfaces :**
 - Consumes : tout ce qui précède.
 - Produces :
-  - `@dataclass(frozen=True) class RunOptions: notes: Path; transition: bool = True; audio: bool = True; video: bool = True; adjust: bool = True; dry_run: bool = False; audio_track: int | None = None; config: Path | None = None`
+  - `@dataclass(frozen=True) class RunOptions: notes: Path; film: Path | None = None; transition: bool = True; audio: bool = True; video: bool = True; adjust: bool = True; dry_run: bool = False; audio_track: int | None = None; config: Path | None = None`
   - `run(opts: RunOptions, *, transcriber: Transcriber | None = None, claude: ClaudeClient | None = None, echo: Callable[[str], None] = typer.echo) -> FilmIndex | None` (injections pour les tests).
-  - CLI : `podcleaner-clips run NOTES [--no-transition] [--audio-only | --video-only] [--no-adjust] [--dry-run] [--audio-track N] [--config CHEMIN]`.
+  - CLI : `podcleaner-clips run NOTES [--film CHEMIN] [--no-transition] [--audio-only | --video-only] [--no-adjust] [--dry-run] [--audio-track N] [--config CHEMIN]`.
 
-Déroulé : `require_ffmpeg` → `load_settings` → `read_notes` (erreurs de lignes affichées) → film trouvé via `fichier:` (absolu, sinon relatif au dossier des notes, sinon à `dossier_films` ; absent → `ClipsError` qui liste les endroits cherchés) → `probe` + `choose_audio_track` → abréviation (notes, sinon Claude/repli puis `write_abbreviation` hors `--dry-run`) → `plan_actions` → pour chaque extrait à faire : fenêtre `[début − tolerance_s, fin + tolerance_s]` bornée à `[0, durée]`, `transcriber.words`, `adjust_cut`, puis `review_cut` si Claude est disponible ; puis rendus ; renommages → `save_index` → récapitulatif.
+Déroulé : `require_ffmpeg` → `load_settings` → `read_notes` (erreurs de lignes affichées) → film : `--film`, sinon `fichier:` (absolu, sinon relatif au dossier des notes, sinon à `dossier_films`) ; aucun → `ClipsError` qui liste les endroits cherchés et cite `--film` → titre : `# ` des notes, sinon déduit du nom du film (voir « Titre du film ») → `probe` + `choose_audio_track(…, preferred_dub)` → si `use_subtitles` et `choose_subtitle_track` trouve une piste : `extract_subtitles` une fois, `parse_srt` → abréviation (notes, sinon Claude/repli puis `write_abbreviation` hors `--dry-run`) → `plan_actions` → pour chaque extrait à faire : `find_anchors`, fenêtre `[début − tolerance_s, fin + tolerance_s]` bornée à `[0, durée]`, `transcriber.words`, `adjust_cut`, puis `choose_bounds` si Claude est disponible ; puis rendus ; renommages → `save_index` → récapitulatif.
 
 Règles :
 - `--audio-only` et `--video-only` ensemble → `ClipsError`. `--video-only` rend quand même le WAV dans un fichier temporaire, supprimé après.
-- `--no-adjust` : ni Whisper ni Claude pour les coupes, méthode `"notes"`.
+- `--no-adjust` : ni sous-titres, ni Whisper, ni Claude pour les coupes, méthode `"notes"`.
 - Extrait dont la fin dépasse la durée du film → erreur pour cet extrait, les autres continuent ; code de sortie 1 si au moins un extrait a échoué, 0 sinon.
 - Pas de son de transition configuré sans `--no-transition` → `ClipsError` qui cite `son_transition` et `--no-transition`.
 - `--dry-run` : transcription et calage faits, rien écrit (ni fichier, ni dossier, ni abréviation dans les notes, ni index).
@@ -515,6 +582,8 @@ def test_audio_and_video_only_together_is_error(...): ...
 def test_second_run_is_all_unchanged(...): ...              # aucun ffmpeg de rendu lancé (compter via monkeypatch), récap « inchangé »
 def test_clip_past_film_end_fails_alone(...): ...           # code 1, l'autre extrait rendu
 def test_film_resolved_from_films_dir(...): ...
+def test_film_option_and_title_from_film_name(...): ...  # notes sans en-tête + --film « X (2015) Bluray.mkv » → dossier « X (2015) »
+def test_subtitles_used_when_present(...): ...          # film de test avec sous-titres FR → ancres transmises à adjust_cut (espion)
 def test_fake_transcriber_cut_written_to_index(...): ...    # méthode "whisper", timecodes retenus ≠ notés
 ```
 
@@ -534,7 +603,7 @@ def test_fake_transcriber_cut_written_to_index(...): ...    # méthode "whisper"
 
 - [ ] **Step 1 : test qui échoue** : `check` repère dans un dossier de test `open(p)` et `p.read_text()` sans `encoding=`, un chemin écrit en dur (`"/Users/"`, `"C:\\"`), `subprocess` avec `shell=True` ; et ne signale rien sur `src/` du projet.
 - [ ] **Step 2 :** FAIL. **Step 3 :** implémenter (module `ast`). **Step 4 :** PASS.
-- [ ] **Step 5 :** skill **test-rapide** (écrit avec `skill-creator`) : générer un film de 20 s avec `make_test_film.py` (VF + VO), un fichier de notes de deux extraits, une config temporaire, lancer `run --no-adjust` puis `run`, et vérifier noms, durées (`ffprobe`), niveaux (-16 ± 1 LUFS, ≤ -1 dBTP) et piste VF (sinus 660 Hz dominant). Skill **compat-windows** : lancer `check_windows_compat.py`, `require_ffmpeg`, puis un `run --no-adjust` dans un dossier `Été à l'écran/` ; à faire avant chaque version.
+- [ ] **Step 5 :** skill **test-rapide** (écrit avec `skill-creator`) : générer un film de 20 s avec `make_test_film.py` (VF + VO), un fichier de notes de deux extraits au format réel (`TC référence TC`), une config temporaire, lancer `run --no-adjust` puis `run`, et vérifier noms, durées (`ffprobe`), niveaux (-16 ± 1 LUFS, ≤ -1 dBTP) et piste VF (sinus 660 Hz dominant). Skill **compat-windows** : lancer `check_windows_compat.py`, `require_ffmpeg`, puis un `run --no-adjust` dans un dossier `Été à l'écran/` ; à faire avant chaque version.
 - [ ] **Step 6 :** README en anglais et en français (`README.md`, `README.fr.md`) : installation (uv, ffmpeg sur macOS et Windows), `config init`, format du fichier de notes, options, sorties, Claude optionnel.
 - [ ] **Step 7 :** `uv run ruff check && uv run pytest`, puis lancer le skill test-rapide → tout passe.
 - [ ] **Step 8 :** commit `docs: skills test rapide et compatibilité Windows, README`.
@@ -543,9 +612,9 @@ def test_fake_transcriber_cut_written_to_index(...): ...    # méthode "whisper"
 
 ## Ordre et parallélisme
 
-1 → 2 → 3 → 4 → 5, puis 6 (ne dépend que de 4) et 8 (dépend de 5) peuvent avancer en parallèle ; 7 après 5 et 6 ; 9 après 8 ; 10 après 3, 6 et 7 ; 11 après tout ; 12 en dernier.
+1 → 2 → 3 → 4 → 5, puis 5b (ne dépend que de 4) et 8 (dépend de 5) peuvent avancer en parallèle ; 6 après 5b ; 7 après 5 et 6 ; 9 après 8 ; 10 après 3, 6 et 7 ; 11 après tout ; 12 en dernier.
 
 ## Données de test
 
 - Générées par `scripts/make_test_film.py` pour les tests automatiques (aucun film dans le dépôt).
-- Un vrai film avec VF + VO et un fichier de notes de 3 ou 4 extraits dans `samples/` (ignoré par git) pour l'essai manuel de la tâche 11, idéalement avec une scène bruyante et une VF en 5.1.
+- Un vrai film et un vrai fichier de notes dans `samples/` (ignoré par git) pour l'essai manuel de la tâche 11. Déjà disponible : `samples/the-night-before.md`, 16 extraits notés par le mainteneur sur *The Night Before* (2015), film avec VFF et VFQ en 5.1, VO, sous-titres français en texte et pochette `mjpeg` (chemin du film en tête du fichier).
