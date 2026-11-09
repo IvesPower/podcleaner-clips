@@ -81,7 +81,7 @@ def _parse_clip_line(line: str) -> tuple[float, float, str] | None:
 
 def read_notes(path: Path) -> Notes:
     if not path.is_file():
-        raise ClipsError(f"Fichier de notes introuvable : {path}")
+        raise ClipsError(f"Notes file not found: {path}")
     lines = path.read_text(encoding="utf-8-sig").splitlines()
 
     title = film_file = abbreviation = None

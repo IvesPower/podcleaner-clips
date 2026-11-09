@@ -118,7 +118,7 @@ def test_empty_reference_is_an_error(tmp_path):
 
 
 def test_missing_file_is_a_clips_error(tmp_path):
-    with pytest.raises(ClipsError, match="introuvable"):
+    with pytest.raises(ClipsError, match="not found"):
         read_notes(tmp_path / "absent.md")
 
 

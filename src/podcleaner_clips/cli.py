@@ -8,7 +8,7 @@ from podcleaner_clips import __version__, config
 from podcleaner_clips.errors import ClipsError
 
 app = typer.Typer(
-    help="Découpe les extraits de film notés pendant le visionnage.",
+    help="Cut the movie clips noted while watching.",
     no_args_is_help=True,
     pretty_exceptions_enable=False,
 )
@@ -19,39 +19,39 @@ def _root() -> None:
     """Keeps subcommands even when there is only one."""
 
 
-config_app = typer.Typer(help="Crée ou affiche le fichier de configuration.", no_args_is_help=True)
+config_app = typer.Typer(help="Create or show the configuration file.", no_args_is_help=True)
 app.add_typer(config_app, name="config")
 
 ConfigOption = Annotated[
     Path | None,
     typer.Option(
         "--config",
-        help=f"Fichier de configuration (sinon {config.CONFIG_ENV_VAR}, puis l'emplacement usuel).",
+        help=f"Configuration file (else {config.CONFIG_ENV_VAR}, then the usual location).",
     ),
 ]
 
 
 @app.command()
 def version() -> None:
-    """Affiche la version."""
+    """Show the version."""
     typer.echo(__version__)
 
 
 @config_app.command("init")
 def config_init(config_path: ConfigOption = None) -> None:
-    """Crée un fichier de configuration commenté, à compléter."""
+    """Create a commented configuration file to fill in."""
     path = config.resolve_config_path(config_path)
     config.write_template(path)
-    typer.echo(f"Fichier de configuration créé : {path}")
-    typer.echo("Ouvrez-le et indiquez au moins dossier_episodes et son_transition.")
+    typer.echo(f"Configuration file created: {path}")
+    typer.echo("Open it and set at least dossier_episodes and son_transition.")
 
 
 @config_app.command("show")
 def config_show(config_path: ConfigOption = None) -> None:
-    """Affiche la configuration lue, valeurs par défaut comprises."""
+    """Show the configuration as read, defaults included."""
     path = config.resolve_config_path(config_path)
     settings = config.load_settings(path)
-    typer.echo(f"Fichier : {path}")
+    typer.echo(f"File: {path}")
     for key, value in config.describe(settings):
         typer.echo(f"{key} = {value}")
 
@@ -62,5 +62,5 @@ def main() -> None:
     try:
         app()
     except ClipsError as exc:
-        typer.echo(f"Erreur : {exc}", err=True)
+        typer.echo(f"Error: {exc}", err=True)
         sys.exit(2)

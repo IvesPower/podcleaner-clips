@@ -124,30 +124,30 @@ def load_settings(path: Path | None = None) -> Settings:
     path = resolve_config_path(path)
     if not path.is_file():
         raise ClipsError(
-            f"Fichier de configuration introuvable : {path}\n"
-            "Créez-le avec : podcleaner-clips config init"
+            f"Configuration file not found: {path}\n"
+            "Create it with: podcleaner-clips config init"
         )
     try:
         data = tomllib.loads(path.read_text(encoding="utf-8-sig"))
     except tomllib.TOMLDecodeError as exc:
-        raise ClipsError(f"Fichier de configuration illisible ({path}) : {exc}") from exc
+        raise ClipsError(f"Cannot read configuration file ({path}): {exc}") from exc
 
     values: dict[str, Any] = {}
     for key, value in data.items():
         if isinstance(value, dict):
             if key not in _SECTIONS:
-                raise ClipsError(f"Section inconnue dans {path} : [{key}]")
+                raise ClipsError(f"Unknown section in {path}: [{key}]")
             for sub_key, sub_value in value.items():
                 _set(values, path, key, sub_key, sub_value)
         else:
             _set(values, path, None, key, value)
 
     if "episodes_dir" not in values:
-        raise ClipsError(f"Indiquez dossier_episodes dans {path}.")
+        raise ClipsError(f"Set dossier_episodes in {path}.")
 
     dub = values.get("preferred_dub", "VFF").upper()
     if dub not in DUBS:
-        raise ClipsError(f'doublage_prefere doit valoir "VFF" ou "VFQ" ({path}).')
+        raise ClipsError(f'doublage_prefere must be "VFF" or "VFQ" ({path}).')
     values["preferred_dub"] = dub
 
     for name in _PATH_FIELDS & values.keys():
@@ -161,7 +161,7 @@ def _set(values: dict[str, Any], path: Path, section: str | None, key: str, valu
     field = _KEYS.get((section, key))
     if field is None:
         where = f"[{section}] " if section else ""
-        raise ClipsError(f"Clé inconnue dans {path} : {where}{key}")
+        raise ClipsError(f"Unknown key in {path}: {where}{key}")
     expected = _FIELD_TYPES[field]
     if expected is bool:
         ok = isinstance(value, bool)
@@ -173,13 +173,13 @@ def _set(values: dict[str, Any], path: Path, section: str | None, key: str, valu
     else:  # text or path
         ok = isinstance(value, str)
     if not ok:
-        raise ClipsError(f"Valeur invalide pour {key} dans {path} : {value!r}")
+        raise ClipsError(f"Invalid value for {key} in {path}: {value!r}")
     values[field] = value
 
 
 def write_template(path: Path) -> None:
     if path.exists():
-        raise ClipsError(f"Le fichier de configuration existe déjà : {path}")
+        raise ClipsError(f"Configuration file already exists: {path}")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(_TEMPLATE, encoding="utf-8")
 
@@ -191,7 +191,7 @@ def describe(settings: Settings) -> list[tuple[str, str]]:
         value = getattr(settings, field)
         label = f"{section}.{key}" if section else key
         if value is None:
-            text = "(aucun)"
+            text = "(none)"
         elif isinstance(value, bool):
             text = "true" if value else "false"
         else:

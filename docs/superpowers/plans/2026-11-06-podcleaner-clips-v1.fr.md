@@ -30,7 +30,7 @@
 - Sortie : `{dossier_episodes}/{nom-film}/audio/`, `…/video/`, `…/extraits.json`.
 - Une nouvelle exécution ne réécrit que les extraits ajoutés ou modifiés.
 - Hors périmètre v1 : lecteur en direct, effets de transition vidéo, incrustation de sous-titres.
-- Code en anglais : identifiants, commentaires et docstrings ; texte montré à l'utilisateur (messages affichés, aide de la CLI, modèle du fichier de configuration), clés du fichier de configuration et de l'index en français.
+- Code et sorties en anglais : identifiants, commentaires, docstrings, messages affichés, erreurs, aide de la CLI ; les messages cités en français dans les tâches ci-dessous sont à écrire en anglais. Restent en français : les clés du fichier de configuration et de l'index, les commentaires du modèle de configuration.
 - Tests rapides (`pytest -m "not slow"`) sans modèle Whisper ni réseau ; ils peuvent appeler ffmpeg. Les tests qui chargent Whisper sont marqués `slow`.
 - `main` est protégée : chaque tâche se fait sur une branche (`feat/…`, `fix/…`, `docs/…`, `chore/…`) et arrive par une pull request. Commits au format Conventional Commits, titre en anglais puis en français (`type: English / français`) ; les messages de commit indiqués dans les tâches ci-dessous ne donnent que la partie française, à compléter. Titre et description de PR : anglais puis français (voir `CONTRIBUTING.fr.md`).
 - Documentation en anglais (`*.md`) et en français (`*.fr.md`) : toute modification de l'une met l'autre à jour dans la même PR. `CLAUDE.md` est en français.
