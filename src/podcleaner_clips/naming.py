@@ -3,7 +3,9 @@
 import re
 import unicodedata
 
-_TC = re.compile(r"(\d{1,2}):([0-5]\d):([0-5]\d)(?:[.,](\d{1,3}))?")
+# HH:MM:SS, ou MM:SS (minutes sur 1 à 3 chiffres), avec 1 à 3 décimales facultatives.
+_TC = re.compile(r"(?:(\d{1,2}):([0-5]\d)|(\d{1,3})):([0-5]\d)(?:[.,](\d{1,3}))?")
+_FOLDER_MAX = 60
 _LIGATURES = str.maketrans({"œ": "oe", "Œ": "OE", "æ": "ae", "Æ": "AE", "ß": "ss"})
 _WORD = re.compile(r"[A-Za-z0-9]+")
 _ARTICLES = {"le", "la", "les", "l", "un", "une", "des", "the", "a", "an"}
@@ -13,11 +15,13 @@ _WINDOWS_RESERVED = {"CON", "PRN", "AUX", "NUL"} | {
 
 
 def parse_tc(text: str) -> float:
-    """`H:MM:SS` ou `HH:MM:SS`, avec 1 à 3 décimales après `.` ou `,`, en secondes."""
+    """`HH:MM:SS` ou `MM:SS` (45:12 = 45 min 12 s), décimales après `.` ou `,` ; en secondes."""
     match = _TC.fullmatch(text.strip())
     if not match:
-        raise ValueError(f"Timecode invalide : {text!r} (attendu HH:MM:SS ou HH:MM:SS.mmm)")
-    hours, minutes, seconds, fraction = match.groups()
+        raise ValueError(f"Timecode invalide : {text!r} (attendu HH:MM:SS ou MM:SS)")
+    hours, minutes, short_minutes, seconds, fraction = match.groups()
+    if short_minutes is not None:
+        hours, minutes = "0", short_minutes
     total = int(hours) * 3600 + int(minutes) * 60 + int(seconds)
     if fraction:
         total += float(f"0.{fraction}")
@@ -69,12 +73,18 @@ def fallback_abbreviation(title: str) -> str:
 
 
 def film_folder_name(title: str) -> str:
-    """Titre du film utilisable comme nom de dossier sur macOS et Windows."""
+    """Titre du film utilisable comme nom de dossier sur macOS et Windows (≤ 60 caractères)."""
     ascii_only = "".join(
         c if c.isascii() and c.isprintable() and c not in '<>:"/\\|?*' else " "
         for c in strip_accents(title)
     )
-    name = " ".join(ascii_only.split()).rstrip(". ")
+    words = ascii_only.split()
+    name = words[0][:_FOLDER_MAX] if words else ""
+    for word in words[1:]:
+        if len(name) + 1 + len(word) > _FOLDER_MAX:
+            break
+        name = f"{name} {word}"
+    name = name.rstrip(". ")
     if not name:
         return "Film"
     if name.upper() in _WINDOWS_RESERVED:
