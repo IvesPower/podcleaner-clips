@@ -17,7 +17,7 @@ L'outil tourne sur macOS et Windows et sera publié en open source, comme podcle
 | --- | --- | --- | --- |
 | Lecture des notes | Lit le fichier .md rempli pendant le visionnage : timecodes de début et de fin, réplique de chaque extrait | Parseur Markdown | Aucun |
 | Choix des pistes | Prend toujours la piste audio VF ; si aucune piste n'est marquée française, prend la première et le signale | ffprobe | Aucun |
-| Ajustement des coupes | Transcrit une marge autour de chaque extrait, retrouve la réplique et cale le début et la fin sur les limites de phrase, sans couper un mot | faster-whisper ou mlx-whisper (timestamps par mot), rapidfuzz | Choisir la coupe quand la réplique est mal transcrite ou quand plusieurs fins sont possibles |
+| Ajustement des coupes | Transcrit une fenêtre d'environ 30 s autour des timecodes notés, retrouve la réplique et cale l'extrait sur elle : du début de la phrase où elle commence à la fin de la phrase où elle se termine, sans couper un mot | faster-whisper ou mlx-whisper (timestamps par mot), rapidfuzz | Choisir la réplique et les bornes de coupe, surtout quand la réplique est mal transcrite, répétée, ou que plusieurs fins sont possibles |
 | Abréviation du film | Donne une abréviation courte et stable au film (ex. « DDC » pour Le Dîner de cons), gardée pour tous ses extraits | Aucun | Proposer l'abréviation ; sans clé d'API, l'outil prend les initiales du titre |
 | Son des extraits | Fondu d'ouverture et de fermeture, son de transition au début et à la fin, normalisation à -16 LUFS et -1 dBTP | ffmpeg | Aucun |
 | Vidéo des extraits | Même découpe que l'audio, écran noir pendant le son de transition | ffmpeg | Aucun |
@@ -33,7 +33,7 @@ Options de la commande :
 
 ## Fichier de notes
 
-Un fichier .md par film, écrit pendant le visionnage. Une ligne par extrait : timecode de début, timecode de fin, réplique. Les lignes qui ne suivent pas ce format sont ignorées, on peut donc garder ses autres notes dans le même fichier.
+Un fichier .md par film, écrit pendant le visionnage. Une ligne par extrait : timecode de début, timecode de fin, réplique. Les timecodes s'écrivent `HH:MM:SS`, ou `MM:SS` sous une heure (`45:12` = 45 min 12 s), et peuvent être approximatifs : jusqu'à environ 30 s d'écart, ils servent à retrouver la réplique, qui fixe les vraies bornes de l'extrait. Les lignes qui ne suivent pas ce format sont ignorées, on peut donc garder ses autres notes dans le même fichier.
 
 ```markdown
 # Le Dîner de cons
@@ -56,7 +56,7 @@ Le programme est une CLI Python qui fait tout le traitement en local avec ffmpeg
 
 1. Lecture du fichier de notes et de la configuration.
 2. Analyse du film avec ffprobe : durée, pistes audio, langue de chaque piste.
-3. Pour chaque extrait, extraction de l'audio VF avec une marge de quelques secondes de chaque côté.
+3. Pour chaque extrait, extraction de l'audio VF avec une marge d'environ 30 s de chaque côté des timecodes notés.
 4. Transcription de cette fenêtre avec timestamps par mot, recherche de la réplique, calage du début et de la fin.
 5. Découpe finale, fondus, ajout de la transition, normalisation, puis export audio et vidéo.
 6. Écriture de l'index JSON et d'un récapitulatif dans le terminal.
@@ -65,7 +65,7 @@ Les chemins ne sont jamais écrits en dur. Un fichier de configuration par perso
 
 Points de vigilance :
 
-- **Temps de calcul.** On ne transcrit que la fenêtre autour de chaque extrait, quelques dizaines de secondes à chaque fois. Un film complet n'est jamais transcrit.
+- **Temps de calcul.** On ne transcrit que la fenêtre autour de chaque extrait, environ une minute à chaque fois. Un film complet n'est jamais transcrit.
 - **Musique et bruitages.** Whisper se trompe plus souvent sur une scène bruyante. Si la réplique n'est pas retrouvée, l'outil garde les timecodes notés et le signale.
 - **Pistes mal étiquetées.** Certains .mkv n'indiquent pas la langue de leurs pistes. L'outil affiche alors les pistes trouvées et permet d'en choisir une avec une option.
 - **Reproductibilité.** Les coupes retenues et les avis de Claude sont écrits dans l'index, pour pouvoir relancer à l'identique.
@@ -98,7 +98,8 @@ La première version ne fait pas le lecteur en direct, ni les effets de transiti
 | Sujet | Décision |
 | --- | --- |
 | Formats d'entrée | .mkv le plus souvent, aussi .avi et .mp4 |
-| Bornes des extraits | Timecodes de début et de fin notés, ajustés par Whisper autour de la réplique, jusqu'à 4 s de chaque côté : mieux vaut un peu de marge qu'une réplique coupée |
+| Bornes des extraits | Les timecodes notés ne servent qu'à localiser la réplique (tolérance d'environ 30 s). L'extrait est calé sur la réplique : début de la phrase où elle commence, fin de la phrase où elle se termine, au plus 4 s de contexte de chaque côté de la réplique, sans couper un mot : mieux vaut un peu de marge qu'une réplique coupée. Réplique introuvable : timecodes notés gardés et signalés |
+| Format des timecodes | `HH:MM:SS` ou `MM:SS` sous une heure (`45:12`), décimales facultatives |
 | Liste des extraits | Un fichier .md de notes par film |
 | Nommage | `{abréviation}-{numéro}-{premiers-mots-de-la-réplique}.{format}` |
 | Abréviation | Proposée par Claude, initiales du titre sans clé d'API, puis figée dans le fichier de notes |

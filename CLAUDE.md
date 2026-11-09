@@ -36,8 +36,8 @@ Le hook `.claude/hooks/python_checks.py` lance Ruff et les tests rapides après 
 | Plateformes | macOS et Windows ; chemins via `pathlib`, jamais de chemin en dur ; texte en `encoding="utf-8"` |
 | Sans compte | Aucune clé d'API requise : chaque appel à Claude a un repli |
 | Formats d'entrée | .mkv le plus souvent, aussi .avi et .mp4 |
-| Liste des extraits | Un fichier .md de notes par film ; une ligne par extrait `- HH:MM:SS > HH:MM:SS \| réplique` ; les autres lignes sont ignorées |
-| Bornes des extraits | Timecodes notés, ajustés par Whisper autour de la réplique, jusqu'à 4 s de chaque côté, sans couper un mot : mieux vaut un peu de marge qu'une réplique coupée |
+| Liste des extraits | Un fichier .md de notes par film ; une ligne par extrait `- HH:MM:SS > HH:MM:SS \| réplique` (ou `MM:SS` sous une heure : `45:12`) ; les autres lignes sont ignorées |
+| Bornes des extraits | Timecodes notés approximatifs (jusqu'à ~30 s d'écart) : ils servent seulement à localiser la réplique. L'extrait est calé sur la réplique (début de sa première phrase, fin de sa dernière), au plus 4 s de contexte de chaque côté, sans couper un mot : mieux vaut un peu de marge qu'une réplique coupée |
 | Langue | Toujours la piste VF, pour l'audio comme pour la vidéo ; sans piste marquée française, la première, avec un avertissement |
 | Abréviation | Proposée par Claude, initiales du titre sans clé d'API, puis figée dans le fichier de notes |
 | Nommage | `{abréviation}-{numéro}-{premiers-mots-de-la-réplique}.{format}` |
@@ -60,7 +60,8 @@ Le hook `.claude/hooks/python_checks.py` lance Ruff et les tests rapides après 
 | Abréviation de repli | Sans l'article initial, initiales en majuscules, 2 à 6 caractères |
 | Image pendant la transition | Noire tant que le son du film n'a pas commencé, pour rester synchrone |
 | Canaux | Sortie stéréo (une VF 5.1 est réduite en stéréo) ; WAV 24 bits |
-| Doute | Score < 50 : timecodes notés gardés ; 50–80 ou deux occurrences proches : avis de Claude, sinon occurrence la plus proche, signalée |
+| Doute | Score < 50 : timecodes notés gardés (calés sur des mots), signalés ; 50–80 ou deux occurrences proches : signalé |
+| Rôle de Claude | Avec une clé, Claude valide chaque coupe (occurrence de la réplique, mots de début et de fin), réponse contrôlée ; sans clé, occurrence la plus proche des timecodes notés |
 | Modèles | Whisper `large-v3-turbo` en `fr` ; Claude `claude-haiku-5-5` ; réglables |
 | Extraits retirés | Fichiers non supprimés, listés comme orphelins |
 

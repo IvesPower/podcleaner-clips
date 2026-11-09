@@ -18,7 +18,8 @@
 - Aucun compte ni clé d'API requis : sans `ANTHROPIC_API_KEY`, chaque appel à Claude a un repli (initiales du titre, coupe la plus large).
 - Entrées : `.mkv`, `.avi`, `.mp4`.
 - Toujours la piste audio VF ; si aucune piste n'est marquée française, la première, avec un avertissement.
-- Ajustement : jusqu'à 4 s de chaque côté des timecodes notés, jamais au milieu d'un mot ; mieux vaut de la marge qu'une réplique coupée.
+- Timecodes notés approximatifs (jusqu'à ~30 s d'écart) : ils servent à localiser la réplique. L'extrait est calé sur la réplique (début de sa première phrase, fin de sa dernière phrase), avec au plus 4 s de contexte de chaque côté de la réplique, jamais au milieu d'un mot ; mieux vaut de la marge qu'une réplique coupée.
+- Timecodes acceptés : `HH:MM:SS` ou `MM:SS` (`45:12` = 45 min 12 s), décimales facultatives.
 - Un film complet n'est jamais transcrit : seulement une fenêtre autour de chaque extrait.
 - Fondus : 0,7 s à l'ouverture et à la fermeture.
 - Audio : WAV 48 kHz, -16 LUFS intégré, -1 dBTP.
@@ -46,13 +47,14 @@
 | Image pendant la transition | Noir tant que le son du film n'a pas commencé (et après qu'il s'arrête), pour que l'image reste synchrone avec le son |
 | Canaux | Sortie stéréo ; une VF 5.1 est réduite en stéréo par le downmix ffmpeg avec la voix centrale conservée |
 | Profondeur WAV | 24 bits |
-| Doute | Score rapidfuzz < 50 : réplique introuvable, timecodes notés gardés. 50–80, ou deux occurrences à moins de 5 points : douteux → avis de Claude si clé, sinon la meilleure occurrence la plus proche des timecodes notés, signalée |
+| Doute | Score rapidfuzz < 50 : réplique introuvable, timecodes notés gardés (calés sur des limites de mots), signalés. 50–80, ou deux occurrences à moins de 5 points : douteux, signalé |
+| Rôle de Claude sur les coupes | Avec une clé et l'ajustement actif, Claude valide **chaque** coupe : il choisit l'occurrence de la réplique et les mots de début et de fin. Sa réponse est contrôlée (bornes dans la fenêtre, réplique choisie incluse) ; sinon, la coupe heuristique est gardée. Sans clé : occurrence la plus proche des timecodes notés |
 | Modèles | Whisper `large-v3-turbo` (mlx : `mlx-community/whisper-large-v3-turbo`), langue `fr` ; Claude `claude-haiku-5-5` ; les deux réglables dans la configuration |
 | Extraits retirés des notes | Leurs fichiers ne sont pas supprimés, seulement listés comme « orphelins » dans le récapitulatif |
 
 ## Review Focus
 
-1. **Fichier de notes réel** : BOM UTF-8, fins de ligne Windows, timecodes `H:MM:SS` ou avec millisecondes (`00:12:34.5`, `00:12:34,500`), début ≥ fin. Les lignes conformes doivent être lues, une ligne avec début ≥ fin est une erreur signalée pour cet extrait sans arrêter les autres. Tests dans la tâche 3.
+1. **Fichier de notes réel** : BOM UTF-8, fins de ligne Windows, timecodes `H:MM:SS`, `MM:SS` (`45:12`) ou avec millisecondes (`00:12:34.5`, `00:12:34,500`), début ≥ fin. Les lignes conformes doivent être lues, une ligne avec début ≥ fin est une erreur signalée pour cet extrait sans arrêter les autres. Tests dans la tâche 3.
 2. **VF en 5.1** (cas courant des .mkv) : l'extrait doit sortir en stéréo, voix audible, au bon niveau. Test dans la tâche 8.
 3. **Répliques accentuées et ponctuées** : `Ça, c'est l'été !` → `ca-c-est-l-ete` ; aucun caractère interdit sous Windows dans un nom de fichier. Tests dans la tâche 2.
 4. **Vidéo anamorphique, 23,976 i/s, HEVC 10 bits** : le noir et l'image du film doivent se concaténer sans erreur ffmpeg et sortir en yuv420p lisible partout. Test dans la tâche 9.
@@ -129,7 +131,7 @@ def test_clips_error_exits_2_with_message():
 
 **Interfaces :**
 - Produces :
-  - `parse_tc(text: str) -> float` : accepte `H:MM:SS`, `HH:MM:SS`, avec `.` ou `,` et 1 à 3 décimales ; `ValueError` sinon.
+  - `parse_tc(text: str) -> float` : accepte `H:MM:SS`, `HH:MM:SS` et `MM:SS` (minutes sur 1 à 3 chiffres : `45:12` = 2712 s), avec `.` ou `,` et 1 à 3 décimales ; `ValueError` sinon.
   - `format_tc(seconds: float) -> str` → `HH:MM:SS.mmm`.
   - `strip_accents(text: str) -> str`
   - `slugify(text: str, max_len: int = 40) -> str`
@@ -144,7 +146,8 @@ def test_parse_tc_variants():
     assert parse_tc("00:12:34") == 754.0
     assert parse_tc("0:12:34.5") == 754.5
     assert parse_tc("00:12:34,250") == 754.25
-    with pytest.raises(ValueError): parse_tc("12:34")
+    assert parse_tc("45:12") == 2712.0   # MM:SS sous une heure
+    with pytest.raises(ValueError): parse_tc("45:60")
 
 def test_format_tc():
     assert format_tc(754.25) == "00:12:34.250"
@@ -190,7 +193,7 @@ def test_clip_basename():
   - `read_notes(path: Path) -> Notes` : `ClipsError` si aucun titre `# `.
   - `write_abbreviation(path: Path, abbr: str) -> None`
 
-Règles : une ligne d'extrait est `- HH:MM:SS > HH:MM:SS | réplique` (espaces souples, `*` accepté comme puce), n'importe où dans le fichier ; toute autre ligne est ignorée. `fichier:` et `abreviation:` (accepter aussi `abréviation:`) sont lus n'importe où avant la première ligne d'extrait. Début ≥ fin → message dans `errors` (`Ligne 7 : le début 00:12:51 n'est pas avant la fin 00:12:34`), extrait non retenu, numérotation inchangée pour les autres.
+Règles : une ligne d'extrait est `- TC > TC | réplique`, où `TC` est tout ce qu'accepte `parse_tc` (`HH:MM:SS`, `MM:SS`…) (espaces souples, `*` accepté comme puce), n'importe où dans le fichier ; toute autre ligne est ignorée. `fichier:` et `abreviation:` (accepter aussi `abréviation:`) sont lus n'importe où avant la première ligne d'extrait. Début ≥ fin → message dans `errors` (`Ligne 7 : le début 00:12:51 n'est pas avant la fin 00:12:34`), extrait non retenu, numérotation inchangée pour les autres.
 
 - [ ] **Step 1 : tests qui échouent** (le fichier de la spec en fixture texte)
 
@@ -229,8 +232,8 @@ def test_write_abbreviation_inserts_after_fichier_and_keeps_rest(tmp_path):
 | `dossier_episodes` | `episodes_dir: Path` | obligatoire |
 | `dossier_films` | `films_dir: Path \| None` | aucun |
 | `son_transition` | `transition_sound: Path \| None` | aucun (obligatoire sauf `--no-transition`) |
-| `[ajustement] marge_max_s` | `adjust_max_s` | 4.0 |
-| `[ajustement] marge_transcription_s` | `window_margin_s` | 5.0 |
+| `[ajustement] tolerance_s` | `tolerance_s` | 30.0 (écart maximal entre timecodes notés et réplique ; fenêtre transcrite) |
+| `[ajustement] contexte_max_s` | `context_max_s` | 4.0 (contexte maximal ajouté de chaque côté de la réplique) |
 | `[ajustement] score_min` / `score_sur` | `score_min`, `score_sure` | 50 / 80 |
 | `[ajustement] pause_phrase_s` | `sentence_gap_s` | 0.6 |
 | `[ajustement] marge_avant_s` / `marge_apres_s` | `pad_before_s`, `pad_after_s` | 0.10 / 0.25 |
@@ -297,18 +300,19 @@ def test_missing_ffmpeg_message(monkeypatch): ...   # shutil.which → None ; me
   - `find_line(words: list[Word], line: str) -> list[Match]` : triées par score décroissant.
   - `@dataclass(frozen=True) class Cut: start: float; end: float; method: str` (`"notes"`, `"whisper"`, `"claude"`) `; score: float | None; doubt: str | None` (raison en français, `None` si sûr).
   - `@dataclass(frozen=True) class Decision: cut: Cut; needs_review: bool; matches: list[Match]`
-  - `adjust_cut(words: list[Word], line: str, noted_start: float, noted_end: float, s: Settings) -> Decision`
+  - `adjust_cut(words: list[Word], line: str, noted_start: float, noted_end: float, s: Settings) -> Decision` (`words` couvre la fenêtre `[noted_start − tolerance_s, noted_end + tolerance_s]`)
   - `cut_from_words(words: list[Word], first: int, last: int, noted_start: float, noted_end: float, s: Settings) -> Cut` : réutilisé par la tâche 7 pour appliquer l'avis de Claude.
 
 Algorithme :
 - Normalisation pour la comparaison : minuscules, sans accents, ponctuation et apostrophes → espace.
 - `find_line` : pour chaque position, fenêtres de `n-2` à `n+2` mots (`n` = mots de la réplique), `rapidfuzz.fuzz.ratio` sur les textes joints ; garder la meilleure fenêtre par position de départ, puis retirer les fenêtres qui en chevauchent une mieux notée.
 - Fin de phrase : mot finissant par `.`, `!`, `?`, `…`, ou suivi d'une pause ≥ `sentence_gap_s`.
-- `adjust_cut` :
-  - meilleur score < `score_min`, ou réplique hors de `[noted_start − adjust_max_s, noted_end + adjust_max_s]` → `Cut(noted_start, noted_end, "notes", score, "réplique introuvable")`.
-  - Le début ne recule que s'il le faut : `S = min(noted_start, début de la réplique)`. Si `S` tombe dans un mot, recul au premier mot de sa phrase, sinon au début de ce mot ; puis `− pad_before_s`, sans entrer dans le mot précédent ; jamais avant `noted_start − adjust_max_s`. Si `S` tombe dans un silence, on le garde.
-  - Fin symétrique : `E = max(noted_end, fin de la réplique)`, avance jusqu'à la fin de phrase, `+ pad_after_s`, sans entrer dans le mot suivant ; jamais après `noted_end + adjust_max_s`. Si la limite des 4 s tombe dans une phrase, s'arrêter à la fin du dernier mot entier avant la limite et mettre `doubt = "fin de phrase au-delà de 4 s"`.
-  - `needs_review = True` si `score_min ≤ score < score_sure`, ou si deux `Match` ont un score à moins de 5 points ; on prend alors l'occurrence la plus proche de `noted_start` et `doubt` explique pourquoi.
+- `adjust_cut` : les timecodes notés ne servent qu'à localiser la réplique ; les bornes viennent de la réplique.
+  - Choix de l'occurrence : parmi les `Match` de score ≥ `score_min` dont le début est dans `[noted_start − tolerance_s, noted_end + tolerance_s]`, la meilleure ; à moins de 5 points d'écart, la plus proche du milieu des timecodes notés.
+  - Aucune : `Cut` sur les timecodes notés, chacun déplacé vers l'extérieur jusqu'à une limite de mot (jamais au milieu d'un mot), méthode `"notes"`, `doubt = "réplique introuvable"`.
+  - Début : premier mot de la phrase où commence la réplique, sans remonter plus de `context_max_s` avant le premier mot de la réplique (si la limite tombe dans la phrase, au premier mot entier après la limite, `doubt = "début de phrase au-delà de 4 s"`) ; puis `− pad_before_s`, sans entrer dans le mot précédent.
+  - Fin symétrique : dernier mot de la phrase où finit la réplique, au plus `context_max_s` après le dernier mot de la réplique (sinon `doubt = "fin de phrase au-delà de 4 s"`) ; puis `+ pad_after_s`, sans entrer dans le mot suivant.
+  - `needs_review = True` si `score_min ≤ score < score_sure`, ou si deux `Match` ont un score à moins de 5 points ; `doubt` explique pourquoi.
 
 - [ ] **Step 1 : tests qui échouent** (listes de `Word` écrites à la main)
 
@@ -316,13 +320,14 @@ Algorithme :
 def test_exact_line_snaps_to_sentence_bounds(): ...
     # "Bonjour. Il s'appelle Juste Leblanc. Ah bon ?" ; notes 10.3 > 12.0 coupent "Il" et "Leblanc"
     # → start == début de "Il" - 0.10, end == fin de "Leblanc." + 0.25, method "whisper", doubt None
-def test_never_moves_inward(): ...         # notes déjà dans des silences autour de la phrase → inchangées
-def test_never_cuts_a_word_at_4s_limit(): ... # phrase de 8 s après la fin notée → end = fin d'un mot entier ≤ noted_end + 4, doubt rempli
+def test_loose_notes_25s_off_still_find_line(): ... # notes 25 s avant la réplique → mêmes bornes que si les notes étaient justes
+def test_bounds_follow_line_not_notes(): ...      # notes larges (10 s autour) → l'extrait se resserre sur la phrase de la réplique
+def test_context_capped_at_4s(): ...              # phrase de 8 s après la réplique → end = fin d'un mot entier ≤ fin de réplique + 4, doubt rempli
+def test_line_beyond_tolerance_is_not_used(): ...  # réplique à 40 s des notes → méthode "notes", doubt "réplique introuvable"
 def test_padding_does_not_enter_neighbour_word(): ... # mot précédent finit 0.05 s avant → start == sa fin
-def test_unrecognised_line_keeps_noted(): ...  # score < 50 → Cut(noted…, "notes", doubt="réplique introuvable")
+def test_unrecognised_line_keeps_noted_on_word_bounds(): ...  # score < 50 → Cut(notes élargies aux limites de mots, "notes", doubt="réplique introuvable")
 def test_misheard_line_needs_review(): ...    # "Il s'appelle juste le blanc" vs "Juste Leblanc" → 50 ≤ score < 80, needs_review
 def test_repeated_line_picks_closest_and_needs_review(): ...
-def test_line_outside_window_is_ignored(): ... # réplique trouvée 6 s avant noted_start → méthode "notes"
 ```
 
 - [ ] **Step 2 :** FAIL. **Step 3 :** implémenter. **Step 4 :** PASS.
@@ -346,7 +351,7 @@ Charger le skill `claude-api` avant d'écrire `claude.py`.
 
 Règles :
 - Abréviation : réponse attendue `^[A-Z0-9]{2,6}$` ; indisponible, erreur réseau ou réponse invalide → `fallback_abbreviation(title)` et `None`.
-- Coupe : envoi des mots numérotés avec leurs temps, de la réplique, des timecodes notés et des occurrences trouvées ; réponse structurée (tool use) `{premier_mot: int, dernier_mot: int, raison: str}` ; conversion par `cut_from_words` avec `method="claude"`. Indices hors bornes ou coupe hors de ±4 s → coupe de `decision` gardée. Indisponible → coupe de `decision`, `doubt` conservé.
+- Coupe : appelée pour **chaque** extrait quand Claude est disponible et l'ajustement actif (pas seulement si `needs_review`). Envoi des mots numérotés avec leurs temps, de la réplique, des timecodes notés (en précisant qu'ils sont approximatifs, ±30 s), des occurrences trouvées et de la coupe heuristique ; réponse structurée (tool use) `{premier_mot: int, dernier_mot: int, raison: str}` ; conversion par `cut_from_words` avec `method="claude"`. Indices hors bornes, début ≥ fin, ou extrait qui ne contient aucune occurrence de la réplique de score ≥ `score_min` → coupe de `decision` gardée. Indisponible → coupe de `decision`, `doubt` conservé.
 - Une erreur de l'API n'arrête jamais l'exécution : un avertissement, puis le repli.
 
 - [ ] **Step 1 : tests qui échouent** (`test_claude.py` avec un faux client Anthropic injecté, sans réseau)
@@ -357,6 +362,7 @@ def test_abbreviation_invalid_answer_falls_back(): ...           # faux client r
 def test_abbreviation_valid_answer(): ...                         # "DDC" → ("DDC", advice.kind == "abreviation")
 def test_review_cut_applies_claude_choice(): ...                  # indices 3..7 → Cut.method == "claude"
 def test_review_cut_rejects_out_of_bounds(): ...                  # indice 999 → coupe d'origine
+def test_review_cut_rejects_cut_without_the_line(): ...           # mots choisis hors réplique → coupe d'origine
 def test_api_error_falls_back_with_warning(): ...                 # faux client lève anthropic.APIError
 ```
 
@@ -488,7 +494,7 @@ def test_index_roundtrip_utf8(tmp_path): ...              # réplique accentuée
   - `run(opts: RunOptions, *, transcriber: Transcriber | None = None, claude: ClaudeClient | None = None, echo: Callable[[str], None] = typer.echo) -> FilmIndex | None` (injections pour les tests).
   - CLI : `podcleaner-clips run NOTES [--no-transition] [--audio-only | --video-only] [--no-adjust] [--dry-run] [--audio-track N] [--config CHEMIN]`.
 
-Déroulé : `require_ffmpeg` → `load_settings` → `read_notes` (erreurs de lignes affichées) → film trouvé via `fichier:` (absolu, sinon relatif au dossier des notes, sinon à `dossier_films` ; absent → `ClipsError` qui liste les endroits cherchés) → `probe` + `choose_audio_track` → abréviation (notes, sinon Claude/repli puis `write_abbreviation` hors `--dry-run`) → `plan_actions` → pour chaque extrait à faire : fenêtre `[début − marge_transcription, fin + marge_transcription]` bornée à `[0, durée]`, `transcriber.words`, `adjust_cut`, `review_cut` si `needs_review` ; puis rendus ; renommages → `save_index` → récapitulatif.
+Déroulé : `require_ffmpeg` → `load_settings` → `read_notes` (erreurs de lignes affichées) → film trouvé via `fichier:` (absolu, sinon relatif au dossier des notes, sinon à `dossier_films` ; absent → `ClipsError` qui liste les endroits cherchés) → `probe` + `choose_audio_track` → abréviation (notes, sinon Claude/repli puis `write_abbreviation` hors `--dry-run`) → `plan_actions` → pour chaque extrait à faire : fenêtre `[début − tolerance_s, fin + tolerance_s]` bornée à `[0, durée]`, `transcriber.words`, `adjust_cut`, puis `review_cut` si Claude est disponible ; puis rendus ; renommages → `save_index` → récapitulatif.
 
 Règles :
 - `--audio-only` et `--video-only` ensemble → `ClipsError`. `--video-only` rend quand même le WAV dans un fichier temporaire, supprimé après.

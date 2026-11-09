@@ -17,7 +17,7 @@ The tool runs on macOS and Windows and will be published as open source, like po
 | --- | --- | --- | --- |
 | Reading the notes | Reads the .md file filled in while watching: start and end timecodes, line of each clip | Markdown parser | None |
 | Track selection | Always takes the French dub (VF) audio track; if no track is tagged French, takes the first one and says so | ffprobe | None |
-| Cut adjustment | Transcribes a margin around each clip, finds the line and snaps the start and end to sentence boundaries, without cutting a word | faster-whisper or mlx-whisper (word timestamps), rapidfuzz | Choose the cut when the line is poorly transcribed or when several endings are possible |
+| Cut adjustment | Transcribes a window of about 30 s around the noted timecodes, finds the line and fits the clip to it: from the start of the sentence where it begins to the end of the sentence where it ends, without cutting a word | faster-whisper or mlx-whisper (word timestamps), rapidfuzz | Choose the line and the cut bounds, especially when the line is poorly transcribed, repeated, or when several endings are possible |
 | Film abbreviation | Gives the film a short, stable abbreviation (e.g. "DDC" for Le Dîner de cons), kept for all its clips | None | Suggest the abbreviation; without an API key, the tool uses the title's initials |
 | Clip audio | Fade-in and fade-out, transition sound at the start and the end, normalization to -16 LUFS and -1 dBTP | ffmpeg | None |
 | Clip video | Same cut as the audio, black screen during the transition sound | ffmpeg | None |
@@ -33,7 +33,7 @@ Command options:
 
 ## Notes file
 
-One .md file per film, written while watching. One line per clip: start timecode, end timecode, line. Lines that do not follow this format are ignored, so other notes can stay in the same file.
+One .md file per film, written while watching. One line per clip: start timecode, end timecode, line. Timecodes are written `HH:MM:SS`, or `MM:SS` under an hour (`45:12` = 45 min 12 s), and can be approximate: up to about 30 s off, they are used to find the line, which sets the clip's real bounds. Lines that do not follow this format are ignored, so other notes can stay in the same file.
 
 ```markdown
 # Le Dîner de cons
@@ -58,7 +58,7 @@ The program is a Python CLI that does all processing locally with ffmpeg and Whi
 
 1. Read the notes file and the configuration.
 2. Analyze the film with ffprobe: duration, audio tracks, language of each track.
-3. For each clip, extract the VF audio with a margin of a few seconds on each side.
+3. For each clip, extract the VF audio with a margin of about 30 s on each side of the noted timecodes.
 4. Transcribe this window with word timestamps, find the line, snap the start and end.
 5. Final cut, fades, transition added, normalization, then audio and video export.
 6. Write the JSON index and a summary in the terminal.
@@ -67,7 +67,7 @@ Paths are never hard-coded. One configuration file per person gives the episodes
 
 Points of attention:
 
-- **Computation time.** Only the window around each clip is transcribed, a few dozen seconds each time. A full film is never transcribed.
+- **Computation time.** Only the window around each clip is transcribed, about a minute each time. A full film is never transcribed.
 - **Music and sound effects.** Whisper makes more mistakes on a noisy scene. If the line is not found, the tool keeps the noted timecodes and says so.
 - **Mislabeled tracks.** Some .mkv files do not state the language of their tracks. The tool then lists the tracks found and lets you choose one with an option.
 - **Reproducibility.** The chosen cuts and Claude's opinions are written to the index, so a run can be repeated identically.
@@ -100,7 +100,8 @@ The first version does not include the live player, video transition effects or 
 | Topic | Decision |
 | --- | --- |
 | Input formats | Mostly .mkv, also .avi and .mp4 |
-| Clip bounds | Noted start and end timecodes, adjusted by Whisper around the line, up to 4 s on each side: better a little margin than a cut-off line |
+| Clip bounds | The noted timecodes are only used to locate the line (tolerance of about 30 s). The clip is fitted to the line: start of the sentence where it begins, end of the sentence where it ends, at most 4 s of context on each side of the line, without cutting a word: better a little margin than a cut-off line. Line not found: noted timecodes kept and flagged |
+| Timecode format | `HH:MM:SS`, or `MM:SS` under an hour (`45:12`), optional decimals |
 | Clip list | One .md notes file per film |
 | Naming | `{abbreviation}-{number}-{first-words-of-the-line}.{format}` |
 | Abbreviation | Suggested by Claude, title initials without an API key, then frozen in the notes file |
