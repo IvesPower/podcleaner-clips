@@ -6,6 +6,20 @@ import unicodedata
 # HH:MM:SS, ou MM:SS (minutes sur 1 à 3 chiffres), avec 1 à 3 décimales facultatives.
 _TC = re.compile(r"(?:(\d{1,2}):([0-5]\d)|(\d{1,3})):([0-5]\d)(?:[.,](\d{1,3}))?")
 _FOLDER_MAX = 60
+# « 25 min 30 », « 25min30 », « 25 min 30 s », « 25 min » → MM:SS.
+_MIN_SEC = re.compile(r"(\d{1,3})\s*min(?:\s*(\d{1,2})(?:\s*s)?)?", re.IGNORECASE)
+
+
+def _normalize_tc(text: str) -> str:
+    """Corrige les saisies courantes : `;` à la place de `:`, minutes écrites en toutes lettres."""
+    text = text.strip().replace(";", ":")
+    match = _MIN_SEC.fullmatch(text)
+    if match:
+        minutes, seconds = match.groups()
+        return f"{minutes}:{int(seconds or 0):02d}"
+    return text
+
+
 _LIGATURES = str.maketrans({"œ": "oe", "Œ": "OE", "æ": "ae", "Æ": "AE", "ß": "ss"})
 _WORD = re.compile(r"[A-Za-z0-9]+")
 _ARTICLES = {"le", "la", "les", "l", "un", "une", "des", "the", "a", "an"}
@@ -16,7 +30,7 @@ _WINDOWS_RESERVED = {"CON", "PRN", "AUX", "NUL"} | {
 
 def parse_tc(text: str) -> float:
     """`HH:MM:SS` ou `MM:SS` (45:12 = 45 min 12 s), décimales après `.` ou `,` ; en secondes."""
-    match = _TC.fullmatch(text.strip())
+    match = _TC.fullmatch(_normalize_tc(text))
     if not match:
         raise ValueError(f"Timecode invalide : {text!r} (attendu HH:MM:SS ou MM:SS)")
     hours, minutes, short_minutes, seconds, fraction = match.groups()
