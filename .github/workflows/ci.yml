@@ -12,6 +12,7 @@ jobs:
   test:
     name: ${{ matrix.os }} · Python ${{ matrix.python }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -23,11 +24,15 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           enable-cache: true
-      # setup-ffmpeg only supports x64: macOS runners are arm64, so use Homebrew.
+      # Package managers preinstalled on the runners: no GitHub API lookup for the
+      # latest release (setup-ffmpeg failed intermittently on "Cannot get latest release").
       - if: runner.os == 'Windows'
-        uses: FedericoCarboni/setup-ffmpeg@v3
+        run: choco install ffmpeg --no-progress -y
       - if: runner.os == 'macOS'
         run: brew install ffmpeg
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
       - run: ffmpeg -version
       - run: uv sync --locked
       - run: uv run ruff check
