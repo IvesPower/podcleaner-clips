@@ -1,4 +1,4 @@
-"""Configuration par personne : un fichier TOML, clés en français."""
+"""Per-person configuration: a TOML file with French keys."""
 
 import os
 import tomllib
@@ -36,7 +36,7 @@ class Settings:
     claude_model: str = "claude-haiku-5-5"
 
 
-# (section TOML, clé TOML) → champ de Settings ; section None = racine du fichier.
+# (TOML section, TOML key) → Settings field; section None = top level of the file.
 _KEYS: dict[tuple[str | None, str], str] = {
     (None, "dossier_episodes"): "episodes_dir",
     (None, "dossier_films"): "films_dir",
@@ -113,7 +113,7 @@ def default_config_path() -> Path:
 
 
 def resolve_config_path(path: Path | None = None) -> Path:
-    """Argument, sinon PODCLEANER_CLIPS_CONFIG, sinon le dossier de configuration utilisateur."""
+    """The argument, else PODCLEANER_CLIPS_CONFIG, else the user config directory."""
     if path is None:
         env = os.environ.get(CONFIG_ENV_VAR)
         path = Path(env) if env else default_config_path()
@@ -170,7 +170,7 @@ def _set(values: dict[str, Any], path: Path, section: str | None, key: str, valu
     elif expected is float:
         ok = isinstance(value, int | float) and not isinstance(value, bool)
         value = float(value) if ok else value
-    else:  # texte ou chemin
+    else:  # text or path
         ok = isinstance(value, str)
     if not ok:
         raise ClipsError(f"Valeur invalide pour {key} dans {path} : {value!r}")
@@ -185,7 +185,7 @@ def write_template(path: Path) -> None:
 
 
 def describe(settings: Settings) -> list[tuple[str, str]]:
-    """Paires (clé TOML, valeur affichable), dans l'ordre du fichier."""
+    """(TOML key, display value) pairs, in file order."""
     rows = []
     for (section, key), field in _KEYS.items():
         value = getattr(settings, field)

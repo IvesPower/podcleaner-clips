@@ -27,7 +27,7 @@ Le hook `.claude/hooks/python_checks.py` lance Ruff et les tests rapides après 
 - Titre de PR : même format que le titre de commit (`type: English / français`).
 - Description de PR : **tout en anglais d'abord, puis tout en français**, séparés par `---`. Chaque version commence par son `## TL;DR` : 1 à 3 phrases simples qui disent ce que change la PR et pourquoi, compréhensibles sans lire le code. Suivre `.github/pull_request_template.md`.
 - Documentation en anglais (`*.md`) et en français (`*.fr.md`) : toute modification de l'une met l'autre à jour dans la même PR. Ce fichier-ci est en français uniquement.
-- Identifiants du code en anglais ; messages affichés, clés du fichier de configuration et de l'index en français.
+- Code en anglais : identifiants, commentaires et docstrings ; texte montré à l'utilisateur (messages affichés, aide de la CLI, modèle du fichier de configuration), clés du fichier de configuration et de l'index en français.
 
 ## Décisions du cahier des charges
 

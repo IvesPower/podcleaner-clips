@@ -147,7 +147,7 @@ def test_template_roundtrips(tmp_path):
     text = cfg.read_text(encoding="utf-8")
     assert "dossier_episodes" in text
     with pytest.raises(ClipsError, match="dossier_episodes"):
-        load_settings(cfg)  # le modèle laisse dossier_episodes à remplir
+        load_settings(cfg)  # the template leaves dossier_episodes to fill in
     cfg.write_text(
         text.replace('# dossier_episodes = ""', 'dossier_episodes = "ep"'), encoding="utf-8"
     )

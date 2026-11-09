@@ -1,17 +1,17 @@
-"""Timecodes et noms : fonctions pures, sans accès au disque."""
+"""Timecodes and names: pure functions, no disk access."""
 
 import re
 import unicodedata
 
-# HH:MM:SS, ou MM:SS (minutes sur 1 à 3 chiffres), avec 1 à 3 décimales facultatives.
+# HH:MM:SS, or MM:SS (1 to 3 minute digits), with 1 to 3 optional decimals.
 _TC = re.compile(r"(?:(\d{1,2}):([0-5]\d)|(\d{1,3})):([0-5]\d)(?:[.,](\d{1,3}))?")
 _FOLDER_MAX = 60
-# « 25 min 30 », « 25min30 », « 25 min 30 s », « 25 min » → MM:SS.
+# "25 min 30", "25min30", "25 min 30 s", "25 min" → MM:SS.
 _MIN_SEC = re.compile(r"(\d{1,3})\s*min(?:\s*(\d{1,2})(?:\s*s)?)?", re.IGNORECASE)
 
 
 def _normalize_tc(text: str) -> str:
-    """Corrige les saisies courantes : `;` à la place de `:`, minutes écrites en toutes lettres."""
+    """Fixes common typing: `;` instead of `:`, minutes written out with "min"."""
     text = text.strip().replace(";", ":")
     match = _MIN_SEC.fullmatch(text)
     if match:
@@ -29,7 +29,7 @@ _WINDOWS_RESERVED = {"CON", "PRN", "AUX", "NUL"} | {
 
 
 def parse_tc(text: str) -> float:
-    """`HH:MM:SS` ou `MM:SS` (45:12 = 45 min 12 s), décimales après `.` ou `,` ; en secondes."""
+    """`HH:MM:SS` or `MM:SS` (45:12 = 45 min 12 s), decimals after `.` or `,`; in seconds."""
     match = _TC.fullmatch(_normalize_tc(text))
     if not match:
         raise ValueError(f"Timecode invalide : {text!r} (attendu HH:MM:SS ou MM:SS)")
@@ -43,7 +43,7 @@ def parse_tc(text: str) -> float:
 
 
 def format_tc(seconds: float) -> str:
-    """Secondes → `HH:MM:SS.mmm`."""
+    """Seconds → `HH:MM:SS.mmm`."""
     if seconds < 0:
         raise ValueError(f"Durée négative : {seconds}")
     hours, rest = divmod(round(seconds * 1000), 3_600_000)
@@ -62,7 +62,7 @@ def _words(text: str) -> list[str]:
 
 
 def slugify(text: str, max_len: int = 40) -> str:
-    """Mots entiers en minuscules ASCII joints par `-`, au plus `max_len` caractères."""
+    """Whole lowercase ASCII words joined by `-`, at most `max_len` characters."""
     words = [w.lower() for w in _words(text)]
     if not words:
         return "extrait"
@@ -75,7 +75,7 @@ def slugify(text: str, max_len: int = 40) -> str:
 
 
 def fallback_abbreviation(title: str) -> str:
-    """Initiales du titre sans l'article initial, 2 à 6 caractères (« Le Dîner de cons » → DDC)."""
+    """Title initials without the leading article, 2 to 6 characters ("Le Dîner de cons" → DDC)."""
     words = _words(title)
     if len(words) > 1 and words[0].lower() in _ARTICLES:
         words = words[1:]
@@ -87,7 +87,7 @@ def fallback_abbreviation(title: str) -> str:
 
 
 def film_folder_name(title: str) -> str:
-    """Titre du film utilisable comme nom de dossier sur macOS et Windows (≤ 60 caractères)."""
+    """Film title usable as a folder name on macOS and Windows (≤ 60 characters)."""
     ascii_only = "".join(
         c if c.isascii() and c.isprintable() and c not in '<>:"/\\|?*' else " "
         for c in strip_accents(title)
@@ -107,5 +107,5 @@ def film_folder_name(title: str) -> str:
 
 
 def clip_basename(abbr: str, number: int, line: str) -> str:
-    """`{abréviation}-{numéro sur 2 chiffres}-{slug de la réplique}`, sans extension."""
+    """`{abbreviation}-{2-digit number}-{reference slug}`, without extension."""
     return f"{abbr}-{number:02d}-{slugify(line)}"

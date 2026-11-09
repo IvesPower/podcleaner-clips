@@ -5,7 +5,7 @@ import pytest
 from podcleaner_clips.errors import ClipsError
 from podcleaner_clips.notes import read_notes, split_fragments, write_abbreviation
 
-# Format réel des notes prises pendant un visionnage (contenu neutre).
+# Real format of notes taken while watching a film (neutral content).
 REAL = """\
 2:35 d'une soirée incroyable 2:51
 
@@ -50,7 +50,7 @@ def test_reads_real_world_lines(tmp_path):
         (5, 4615.0, 4628.0),
     ]
     assert n.clips[0].reference == "d'une soirée incroyable"
-    assert n.clips[2].reference == "ça va te remettre les idées en place"  # « : » retiré
+    assert n.clips[2].reference == "ça va te remettre les idées en place"  # ":" removed
     assert n.clips[3].fragments == ["si je veux", "il va comprendre ce soir"]
     assert n.clips[4].fragments == ["l'histoire se répète", "encore une fois"]
     assert n.clips[0].fragments == ["d'une soirée incroyable"]
@@ -87,7 +87,7 @@ def test_split_fragments():
     assert split_fragments("peut-être pas") == ["peut-être pas"]
     assert split_fragments("a b ... c d") == ["a b", "c d"]
     assert split_fragments("a b…c d") == ["a b", "c d"]
-    assert split_fragments("a b – c d") == ["a b", "c d"]  # tiret demi-cadratin
+    assert split_fragments("a b – c d") == ["a b", "c d"]  # en dash
     assert split_fragments("  seul  ") == ["seul"]
     assert split_fragments("… a b …") == ["a b"]
 

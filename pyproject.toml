@@ -33,14 +33,14 @@ build-backend = "uv_build"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-# Les blocs de code des plans sont des esquisses, pas du code à formater.
+# Code blocks in the plans are sketches, not code to format.
 extend-exclude = ["docs"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
 
 [tool.ruff.lint.isort]
-# Explicite : sinon un test écrit avant son module classe le paquet comme externe.
+# Explicit: otherwise a test written before its module sorts the package as third-party.
 known-first-party = ["podcleaner_clips"]
 
 [tool.pytest.ini_options]

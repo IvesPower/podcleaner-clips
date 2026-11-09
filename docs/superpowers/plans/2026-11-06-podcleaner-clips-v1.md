@@ -30,7 +30,7 @@
 - Output: `{dossier_episodes}/{film-name}/audio/`, `…/video/`, `…/extraits.json`.
 - A new run only rewrites the clips that were added or changed.
 - Out of scope for v1: live player, video transition effects, burning subtitles into clips.
-- Code identifiers in English; displayed messages, config file keys and index keys in French.
+- Code in English: identifiers, comments and docstrings; user-facing text (displayed messages, CLI help, config file template), config file keys and index keys in French.
 - Fast tests (`pytest -m "not slow"`) without a Whisper model or network; they may call ffmpeg. Tests that load Whisper are marked `slow`.
 - `main` is protected: each task is done on a branch (`feat/…`, `fix/…`, `docs/…`, `chore/…`) and lands through a pull request. Commits follow Conventional Commits, title in English then French (`type: English / français`); the commit messages given in the tasks below only show the French part, to be completed. PR title and description: English then French (see `CONTRIBUTING.md`).
 - Docs in English (`*.md`) and French (`*.fr.md`): any change to one updates the other in the same PR. `CLAUDE.md` is in French.
