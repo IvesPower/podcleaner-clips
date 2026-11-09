@@ -21,8 +21,30 @@ def test_parse_tc_variants():
     assert parse_tc(" 01:00:00 ") == 3600.0
 
 
+def test_parse_tc_minutes_seconds_short_form():
+    # Sous une heure, on peut écrire MM:SS : 45:12 = 45 min 12 s.
+    assert parse_tc("45:12") == 2712.0
+    assert parse_tc("4:05") == 245.0
+    assert parse_tc("45:12.5") == 2712.5
+    assert parse_tc("45:12,250") == 2712.25
+    assert parse_tc("75:30") == 4530.0  # au-delà d'une heure, toléré
+
+
 @pytest.mark.parametrize(
-    "bad", ["12:34", "00:12:34.1234", "00:61:00", "00:00:60", "aa:bb:cc", "", "-0:00:01"]
+    "bad",
+    [
+        "12",
+        "45:60",
+        "45:1",
+        "1234:00",
+        "00:12:34.1234",
+        "00:61:00",
+        "00:00:60",
+        "aa:bb:cc",
+        "",
+        "-0:00:01",
+        "1:2:3:4",
+    ],
 )
 def test_parse_tc_rejects_malformed(bad):
     with pytest.raises(ValueError):
@@ -87,6 +109,18 @@ def test_film_folder_name_is_windows_safe():
     assert film_folder_name('A/B\\C<D>E|F*G"H') == "A B C D E F G H"
     assert film_folder_name("Fin. ") == "Fin"  # Windows refuse point ou espace final
     assert film_folder_name("???") == "Film"
+
+
+def test_film_folder_name_is_capped_at_60_chars_on_a_word():
+    title = "Les Aventures extraordinaires d'Adèle Blanc-Sec et la momie du Louvre perdue"
+    name = film_folder_name(title)
+    assert name == "Les Aventures extraordinaires d'Adele Blanc-Sec et la momie"
+    assert len(name) <= 60
+
+
+def test_clip_name_stays_short():
+    line = "un deux trois quatre cinq six sept huit neuf dix onze douze treize"
+    assert len(clip_basename("BLBELT", 99, line) + ".wav") <= 54
 
 
 def test_film_folder_name_avoids_windows_reserved_names():
