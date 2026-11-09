@@ -1,8 +1,10 @@
 import sys
+from pathlib import Path
+from typing import Annotated
 
 import typer
 
-from podcleaner_clips import __version__
+from podcleaner_clips import __version__, config
 from podcleaner_clips.errors import ClipsError
 
 app = typer.Typer(
@@ -17,10 +19,41 @@ def _root() -> None:
     """Garde les sous-commandes même quand il n'y en a qu'une."""
 
 
+config_app = typer.Typer(help="Crée ou affiche le fichier de configuration.", no_args_is_help=True)
+app.add_typer(config_app, name="config")
+
+ConfigOption = Annotated[
+    Path | None,
+    typer.Option(
+        "--config",
+        help=f"Fichier de configuration (sinon {config.CONFIG_ENV_VAR}, puis l'emplacement usuel).",
+    ),
+]
+
+
 @app.command()
 def version() -> None:
     """Affiche la version."""
     typer.echo(__version__)
+
+
+@config_app.command("init")
+def config_init(config_path: ConfigOption = None) -> None:
+    """Crée un fichier de configuration commenté, à compléter."""
+    path = config.resolve_config_path(config_path)
+    config.write_template(path)
+    typer.echo(f"Fichier de configuration créé : {path}")
+    typer.echo("Ouvrez-le et indiquez au moins dossier_episodes et son_transition.")
+
+
+@config_app.command("show")
+def config_show(config_path: ConfigOption = None) -> None:
+    """Affiche la configuration lue, valeurs par défaut comprises."""
+    path = config.resolve_config_path(config_path)
+    settings = config.load_settings(path)
+    typer.echo(f"Fichier : {path}")
+    for key, value in config.describe(settings):
+        typer.echo(f"{key} = {value}")
 
 
 def main() -> None:
