@@ -30,7 +30,7 @@
 - Output: `{dossier_episodes}/{film-name}/audio/`, `…/video/`, `…/extraits.json`.
 - A new run only rewrites the clips that were added or changed.
 - Out of scope for v1: live player, video transition effects, burning subtitles into clips.
-- Code and output in English: identifiers, comments, docstrings, displayed messages, errors, CLI help; messages quoted in French in the tasks below are to be written in English. Kept in French: config file and index keys, the config template's comments.
+- Code and output in English: identifiers, comments, docstrings, displayed messages, errors, CLI help; messages quoted in French in the tasks below are to be written in English. Kept in French: config file and index keys.
 - Fast tests (`pytest -m "not slow"`) without a Whisper model or network; they may call ffmpeg. Tests that load Whisper are marked `slow`.
 - `main` is protected: each task is done on a branch (`feat/…`, `fix/…`, `docs/…`, `chore/…`) and lands through a pull request. Commits follow Conventional Commits, title in English then French (`type: English / français`); the commit messages given in the tasks below only show the French part, to be completed. PR title and description: English then French (see `CONTRIBUTING.md`).
 - Docs in English (`*.md`) and French (`*.fr.md`): any change to one updates the other in the same PR. `CLAUDE.md` is in French.
@@ -273,7 +273,7 @@ def test_write_abbreviation_inserts_header_and_keeps_rest(tmp_path):
 Path resolution: argument > `PODCLEANER_CLIPS_CONFIG` > `default_config_path()`. `~` expanded. Missing file → `ClipsError` that gives the expected path and the `podcleaner-clips config init` command.
 
 - [ ] **Step 1: failing tests**: `test_defaults_applied`, `test_env_var_overrides_default_path` (monkeypatch), `test_missing_file_message_mentions_config_init`, `test_unknown_key_is_an_error` (typo → `ClipsError` naming the key), `test_preferred_dub_must_be_vff_or_vfq`, `test_paths_with_accents_and_tilde`, `test_template_roundtrips` (`write_template` then `load_settings` after filling in `dossier_episodes`).
-- [ ] **Step 2:** FAIL. **Step 3:** implement with `tomllib`. Template file commented in French. **Step 4:** PASS.
+- [ ] **Step 2:** FAIL. **Step 3:** implement with `tomllib`. Template file commented in English. **Step 4:** PASS.
 - [ ] **Step 5:** commit `feat: configuration par personne`.
 
 ---

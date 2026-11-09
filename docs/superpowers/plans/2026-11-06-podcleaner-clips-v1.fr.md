@@ -30,7 +30,7 @@
 - Sortie : `{dossier_episodes}/{nom-film}/audio/`, `…/video/`, `…/extraits.json`.
 - Une nouvelle exécution ne réécrit que les extraits ajoutés ou modifiés.
 - Hors périmètre v1 : lecteur en direct, effets de transition vidéo, incrustation de sous-titres.
-- Code et sorties en anglais : identifiants, commentaires, docstrings, messages affichés, erreurs, aide de la CLI ; les messages cités en français dans les tâches ci-dessous sont à écrire en anglais. Restent en français : les clés du fichier de configuration et de l'index, les commentaires du modèle de configuration.
+- Code et sorties en anglais : identifiants, commentaires, docstrings, messages affichés, erreurs, aide de la CLI ; les messages cités en français dans les tâches ci-dessous sont à écrire en anglais. Restent en français : les clés du fichier de configuration et de l'index.
 - Tests rapides (`pytest -m "not slow"`) sans modèle Whisper ni réseau ; ils peuvent appeler ffmpeg. Les tests qui chargent Whisper sont marqués `slow`.
 - `main` est protégée : chaque tâche se fait sur une branche (`feat/…`, `fix/…`, `docs/…`, `chore/…`) et arrive par une pull request. Commits au format Conventional Commits, titre en anglais puis en français (`type: English / français`) ; les messages de commit indiqués dans les tâches ci-dessous ne donnent que la partie française, à compléter. Titre et description de PR : anglais puis français (voir `CONTRIBUTING.fr.md`).
 - Documentation en anglais (`*.md`) et en français (`*.fr.md`) : toute modification de l'une met l'autre à jour dans la même PR. `CLAUDE.md` est en français.
@@ -273,7 +273,7 @@ def test_write_abbreviation_inserts_header_and_keeps_rest(tmp_path):
 Résolution du chemin : argument > `PODCLEANER_CLIPS_CONFIG` > `default_config_path()`. `~` développé. Fichier absent → `ClipsError` qui donne le chemin attendu et la commande `podcleaner-clips config init`.
 
 - [ ] **Step 1 : tests qui échouent** : `test_defaults_applied`, `test_env_var_overrides_default_path` (monkeypatch), `test_missing_file_message_mentions_config_init`, `test_unknown_key_is_an_error` (faute de frappe → `ClipsError` qui nomme la clé), `test_preferred_dub_must_be_vff_or_vfq`, `test_paths_with_accents_and_tilde`, `test_template_roundtrips` (`write_template` puis `load_settings` après avoir rempli `dossier_episodes`).
-- [ ] **Step 2 :** FAIL. **Step 3 :** implémenter avec `tomllib`. Modèle de fichier commenté en français. **Step 4 :** PASS.
+- [ ] **Step 2 :** FAIL. **Step 3 :** implémenter avec `tomllib`. Modèle de fichier commenté en anglais. **Step 4 :** PASS.
 - [ ] **Step 5 :** commit `feat: configuration par personne`.
 
 ---

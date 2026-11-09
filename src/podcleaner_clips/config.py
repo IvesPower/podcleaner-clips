@@ -61,48 +61,48 @@ _PATH_FIELDS = {"episodes_dir", "films_dir", "transition_sound"}
 _FIELD_TYPES = {f.name: f.type for f in fields(Settings)}
 
 _TEMPLATE = """\
-# Configuration de podcleaner-clips.
-# Les chemins peuvent commencer par ~ (dossier personnel) ; un chemin relatif part du
-# dossier de ce fichier. Les lignes commençant par # sont ignorées : retirez le # pour
-# changer une valeur (celle indiquée est la valeur par défaut).
+# podcleaner-clips configuration.
+# Paths may start with ~ (home folder); a relative path starts from this file's folder.
+# Lines starting with # are ignored: remove the # to change a value (the value shown
+# is the default).
 
-# Dossier où sont rangés les extraits, un sous-dossier par film (obligatoire).
+# Folder where clips are stored, one subfolder per film (required).
 # dossier_episodes = ""
 
-# Dossier où chercher les films quand le fichier de notes ne donne qu'un nom de fichier.
+# Folder to look for films in when the notes file only gives a file name.
 # dossier_films = ""
 
-# Son joué avant et après chaque extrait (obligatoire, sauf avec --no-transition).
+# Sound played before and after each clip (required, unless --no-transition).
 # son_transition = ""
 
-# Doublage préféré quand le film a une VFF et une VFQ : "VFF" ou "VFQ".
+# Preferred French dub when the film has both VFF (France) and VFQ (Quebec): "VFF" or "VFQ".
 # doublage_prefere = "VFF"
 
 [ajustement]
-# Écart admis (secondes) entre un timecode noté et la borne retenue.
+# Allowed gap (seconds) between a noted timecode and the chosen cut.
 # tolerance_s = 15.0
-# Chercher d'abord les répliques dans les sous-titres français du film.
+# Look for the lines in the film's French subtitles first.
 # sous_titres = true
-# Score de ressemblance (0-100) pour qu'une réplique soit trouvée, puis jugée sûre.
+# Similarity score (0-100) for a line to count as found, then as sure.
 # score_trouve = 70
 # score_sur = 85
-# Silence (secondes) qui marque une fin de phrase.
+# Silence (seconds) that marks the end of a sentence.
 # pause_phrase_s = 0.6
-# Marge (secondes) gardée avant le premier mot et après le dernier.
+# Margin (seconds) kept before the first word and after the last one.
 # marge_avant_s = 0.10
 # marge_apres_s = 0.25
-# Modèle Whisper utilisé pour transcrire le doublage.
+# Whisper model used to transcribe the dub.
 # modele_whisper = "large-v3-turbo"
 
 [son]
-# Durée (secondes) des fondus d'ouverture et de fermeture.
+# Length (seconds) of the fade-in and fade-out.
 # fondu_s = 0.7
-# Volume visé (LUFS intégré) et crête maximale (dBTP).
+# Target loudness (integrated LUFS) and maximum true peak (dBTP).
 # lufs = -16.0
 # true_peak = -1.0
 
 [claude]
-# Demander l'avis de Claude (abréviation, bornes) quand ANTHROPIC_API_KEY est définie.
+# Ask Claude (abbreviation, cuts) when ANTHROPIC_API_KEY is set.
 # actif = true
 # modele = "claude-haiku-5-5"
 """
