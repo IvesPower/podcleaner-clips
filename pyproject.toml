@@ -39,6 +39,10 @@ extend-exclude = ["docs"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
 
+[tool.ruff.lint.isort]
+# Explicite : sinon un test écrit avant son module classe le paquet comme externe.
+known-first-party = ["podcleaner_clips"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = ["slow: charge un modèle Whisper"]
