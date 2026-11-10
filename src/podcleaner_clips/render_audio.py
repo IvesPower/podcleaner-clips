@@ -53,7 +53,7 @@ def _ms(seconds: float) -> int:
     return round(seconds * 1000)
 
 
-def _s(seconds: float) -> str:
+def ffmpeg_seconds(seconds: float) -> str:
     return f"{seconds:.3f}".rstrip("0").rstrip(".")
 
 
@@ -64,14 +64,15 @@ def audio_filter(layout: ClipLayout, with_transition: bool, track: int = 0) -> s
     """
     clip = layout.clip_s
     fade = min(layout.fade_s, clip / 2)
+    d, out_at = ffmpeg_seconds(fade), ffmpeg_seconds(clip - fade)
     film = (
         f"[0:a:{track}]asetpts=PTS-STARTPTS,{_FORMAT},"
-        f"afade=t=in:d={_s(fade)},afade=t=out:st={_s(clip - fade)}:d={_s(fade)}"
+        f"afade=t=in:d={d},afade=t=out:st={out_at}:d={d}"
     )
     # adelay leaves its silence without timestamps (ffmpeg 7.1), which then cuts the mix
     # short: timestamps are rebuilt from the sample count after it.
     delay = "all=1,asetpts=N/SR/TB"
-    total = _s(layout.total_s)
+    total = ffmpeg_seconds(layout.total_s)
     end = f"apad=whole_dur={total},atrim=end={total}[mix]"
     if not with_transition:
         return f"{film},{end}"
@@ -85,7 +86,7 @@ def audio_filter(layout: ClipLayout, with_transition: bool, track: int = 0) -> s
     )
 
 
-def _ffmpeg(args: list[str]) -> str:
+def run_ffmpeg(args: list[str]) -> str:
     """Runs ffmpeg and returns its log (stderr)."""
     try:
         proc = subprocess.run(
@@ -102,7 +103,14 @@ def _ffmpeg(args: list[str]) -> str:
 
 
 def _inputs(film: Path, layout: ClipLayout, transition: Path | None) -> list[str]:
-    args = ["-ss", _s(layout.film_start), "-t", _s(layout.clip_s), "-i", str(film)]
+    args = [
+        "-ss",
+        ffmpeg_seconds(layout.film_start),
+        "-t",
+        ffmpeg_seconds(layout.clip_s),
+        "-i",
+        str(film),
+    ]
     if transition is not None:
         args += ["-i", str(transition)]
     return args
@@ -133,7 +141,7 @@ def render_audio(
     target = f"I={s.lufs:g}:TP={s.true_peak:g}:LRA={_LRA}"
 
     # Pass 1: measure the mixed clip.
-    log = _ffmpeg(
+    log = run_ffmpeg(
         [
             *inputs,
             "-filter_complex",
@@ -167,7 +175,7 @@ def render_audio(
     out_wav = Path(out_wav)
     part = out_wav.with_name(f".{out_wav.stem}.part.wav")
     try:
-        _ffmpeg(
+        run_ffmpeg(
             [
                 *inputs,
                 "-filter_complex",
@@ -194,7 +202,7 @@ _PEAK = re.compile(r"^\s*Peak:\s+(-?[\d.]+|-inf) dBFS", re.MULTILINE)
 
 def measure_loudness(path: Path) -> tuple[float, float]:
     """(integrated loudness in LUFS, true peak in dBTP) of an audio file."""
-    log = _ffmpeg(["-i", str(path), "-filter_complex", "ebur128=peak=true", "-f", "null", "-"])
+    log = run_ffmpeg(["-i", str(path), "-filter_complex", "ebur128=peak=true", "-f", "null", "-"])
     integrated, peak = _INTEGRATED.findall(log), _PEAK.findall(log)
     if not integrated or not peak:
         raise ClipsError(f"ffmpeg did not report the loudness of {path}.")

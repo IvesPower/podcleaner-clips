@@ -14,7 +14,19 @@ AUDIO_TRACKS = [
     (440, "eng", "English"),
     (880, "fre", "Français VFQ"),
 ]
-VIDEO_CODECS = {"h264"}
+# Video kinds: "h264" (320x240, 24 fps, square pixels) or "hevc10_anamorphic"
+# (320x240 stored, 4:3 pixels, 23.976 fps, 10-bit HEVC), like many Blu-ray rips.
+VIDEO_KINDS = {
+    "h264": ("24", ["-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p"]),
+    "hevc10_anamorphic": (
+        "24000/1001",
+        [
+            "-vf", "setsar=4/3",
+            "-c:v", "libx265", "-preset", "ultrafast", "-pix_fmt", "yuv420p10le",
+            "-x265-params", "log-level=error",
+        ],
+    ),
+}  # fmt: skip
 
 
 def make_test_film(
@@ -29,8 +41,9 @@ def make_test_film(
 
     `subtitles` is SRT content added as a French "Complets" text subtitle track.
     """
-    if video not in VIDEO_CODECS:
+    if video not in VIDEO_KINDS:
         raise ValueError(f"Unknown video kind: {video!r}")
+    rate, video_args = VIDEO_KINDS[video]
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
@@ -38,7 +51,7 @@ def make_test_film(
         _run(
             ["-f", "lavfi", "-i", "color=c=red:s=64x64", "-frames:v", "1", str(cover)],
         )
-        args = ["-f", "lavfi", "-i", f"testsrc=size=320x240:rate=24:duration={duration}"]
+        args = ["-f", "lavfi", "-i", f"testsrc=size=320x240:rate={rate}:duration={duration}"]
         for freq, _, _ in AUDIO_TRACKS:
             args += ["-f", "lavfi", "-i", f"sine=frequency={freq}:duration={duration}"]
         if subtitles is not None:
@@ -50,7 +63,7 @@ def make_test_film(
             args += ["-map", f"{i + 1}:a"]
         if subtitles is not None:
             args += ["-map", f"{len(AUDIO_TRACKS) + 1}:s"]
-        args += ["-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p"]
+        args += video_args
         args += ["-c:a", "aac", "-ac", "2", "-ac:a:0", str(vf_channels)]
         for i, (_, lang, title) in enumerate(AUDIO_TRACKS):
             args += [
