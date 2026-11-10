@@ -18,6 +18,8 @@ uv run podcleaner-clips    # la CLI
 
 Le hook `.claude/hooks/python_checks.py` lance Ruff et les tests rapides après chaque modification d'un `.py`.
 
+Skills du projet : `test-rapide` (test de bout en bout sur un film généré, avant une PR qui touche le pipeline ou le rendu) et `compat-windows` (avant chaque version).
+
 ## Règles du dépôt
 
 - `main` est protégée : on travaille sur une branche (`feat/…`, `fix/…`, `docs/…`, `chore/…`, `test/…`, `ci/…`) et tout arrive par une pull request, approuvée par le propriétaire (CODEOWNERS).
