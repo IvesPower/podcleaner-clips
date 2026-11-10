@@ -63,6 +63,8 @@ _FIELD_TYPES = {f.name: f.type for f in fields(Settings)}
 _TEMPLATE = """\
 # podcleaner-clips configuration.
 # Paths may start with ~ (home folder); a relative path starts from this file's folder.
+# On Windows, write paths with / ("C:/Films") or between single quotes ('C:\\Films'):
+# a \\ between double quotes is read as an escape sequence.
 # Lines starting with # are ignored: remove the # to change a value (the value shown
 # is the default).
 
