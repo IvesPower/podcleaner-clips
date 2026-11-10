@@ -8,6 +8,7 @@ from podcleaner_clips.naming import (
     parse_tc,
     slugify,
     strip_accents,
+    title_from_film,
 )
 
 WINDOWS_FORBIDDEN = set('<>:"/\\|?*')
@@ -104,6 +105,17 @@ def test_fallback_abbreviation():
     assert fallback_abbreviation("L'Auberge espagnole") == "AE"
     assert fallback_abbreviation("Alien") == "AL"  # single word: first two letters
     assert fallback_abbreviation("The Big Lebowski") == "BL"
+
+
+def test_fallback_abbreviation_ignores_the_year():
+    assert fallback_abbreviation("The Night Before (2015)") == "NB"
+    assert fallback_abbreviation("1917") == "19"  # a year-like title stays
+
+
+def test_title_from_film_keeps_up_to_the_year():
+    assert title_from_film("The Night Before (2015) Bluray-1080p.mkv") == "The Night Before (2015)"
+    assert title_from_film("Le Dîner de cons.avi") == "Le Dîner de cons"
+    assert title_from_film("Alien (1979).mp4") == "Alien (1979)"
 
 
 def test_fallback_abbreviation_is_2_to_6_chars():

@@ -108,13 +108,13 @@ def test_bom_and_crlf(tmp_path):
 def test_start_after_end_is_reported_not_fatal(tmp_path):
     n = read_notes(write(tmp_path, "2:51 inversée 2:35\n3:00 correcte 3:10\n"))
     assert [(c.number, c.reference) for c in n.clips] == [(2, "correcte")]
-    assert len(n.errors) == 1 and n.errors[0].startswith("Ligne 1 :")
+    assert len(n.errors) == 1 and n.errors[0].startswith("Line 1:")
 
 
 def test_empty_reference_is_an_error(tmp_path):
     n = read_notes(write(tmp_path, "2:35 2:51\n"))
     assert n.clips == []
-    assert len(n.errors) == 1 and "Ligne 1" in n.errors[0]
+    assert len(n.errors) == 1 and "Line 1" in n.errors[0]
 
 
 def test_missing_file_is_a_clips_error(tmp_path):

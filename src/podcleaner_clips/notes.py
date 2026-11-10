@@ -105,10 +105,10 @@ def read_notes(path: Path) -> Notes:
         number += 1
         start, end, reference = parsed
         if not reference:
-            errors.append(f"Ligne {line_no} : aucune référence entre les deux timecodes")
+            errors.append(f"Line {line_no}: no reference between the two timecodes")
         elif start >= end:
             errors.append(
-                f"Ligne {line_no} : le début {format_tc(start)} n'est pas avant la fin "
+                f"Line {line_no}: the start {format_tc(start)} is not before the end "
                 f"{format_tc(end)}"
             )
         else:

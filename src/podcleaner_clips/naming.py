@@ -23,6 +23,8 @@ def _normalize_tc(text: str) -> str:
 _LIGATURES = str.maketrans({"œ": "oe", "Œ": "OE", "æ": "ae", "Æ": "AE", "ß": "ss"})
 _WORD = re.compile(r"[A-Za-z0-9]+")
 _ARTICLES = {"le", "la", "les", "l", "un", "une", "des", "the", "a", "an"}
+# A year in parentheses: "(2015)".
+_YEAR = re.compile(r"\(\s*(?:19|20)\d\d\s*\)")
 _WINDOWS_RESERVED = {"CON", "PRN", "AUX", "NUL"} | {
     f"{p}{i}" for p in ("COM", "LPT") for i in range(1, 10)
 }
@@ -45,7 +47,7 @@ def parse_tc(text: str) -> float:
 def format_tc(seconds: float) -> str:
     """Seconds → `HH:MM:SS.mmm`."""
     if seconds < 0:
-        raise ValueError(f"Durée négative : {seconds}")
+        raise ValueError(f"Negative duration: {seconds}")
     hours, rest = divmod(round(seconds * 1000), 3_600_000)
     minutes, rest = divmod(rest, 60_000)
     secs, millis = divmod(rest, 1000)
@@ -76,7 +78,7 @@ def slugify(text: str, max_len: int = 40) -> str:
 
 def fallback_abbreviation(title: str) -> str:
     """Title initials without the leading article, 2 to 6 characters ("Le Dîner de cons" → DDC)."""
-    words = _words(title)
+    words = _words(_YEAR.sub(" ", title))
     if len(words) > 1 and words[0].lower() in _ARTICLES:
         words = words[1:]
     if len(words) == 1:
@@ -84,6 +86,16 @@ def fallback_abbreviation(title: str) -> str:
     else:
         abbr = "".join(w[0] for w in words)[:6]
     return abbr.upper() if len(abbr) >= 2 else "FILM"
+
+
+def title_from_film(file_name: str) -> str:
+    """Film title from its file name: up to the year in parentheses, else the name alone.
+
+    "The Night Before (2015) Bluray-1080p.mkv" → "The Night Before (2015)".
+    """
+    stem = file_name.rsplit(".", 1)[0] if "." in file_name else file_name
+    year = _YEAR.search(stem)
+    return (stem[: year.end()] if year else stem).strip()
 
 
 def film_folder_name(title: str) -> str:
