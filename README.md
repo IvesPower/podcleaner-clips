@@ -61,20 +61,15 @@ The first run that locates lines downloads the Whisper model (`large-v3-turbo`, 
 
 ## Configure
 
-Each person has their own configuration file. Create it, then open it:
+Each person has their own configuration file. Create it by answering a few questions:
 
 ```bash
 pclips init
 ```
 
-It is created in `~/Library/Application Support/podcleaner-clips/config.toml` on macOS and in `%LOCALAPPDATA%\podcleaner-clips\config.toml` on Windows (`--config` or the `PODCLEANER_CLIPS_CONFIG` variable point elsewhere). Remove the `#` in front of at least the two lines below. On Windows, write paths with `/` (`"C:/Podcast/Episodes"`) or between single quotes (`'C:\Podcast\Episodes'`): a `\` between double quotes is an escape sequence in TOML.
+It asks for the folder where clips are stored (required; it offers to create it), the folder where your films are, the transition sound, the preferred dub (VFF or VFQ) and whether to use Claude, saying whether Claude Code or an API key was found. Paths can be pasted or dragged into the terminal. Run `pclips init` again to change your answers: the current values are offered as defaults, and the file is replaced only after you confirm.
 
-```toml
-episodes_dir = "~/Podcast/Episodes"                # where clips are stored, one folder per film
-transition_sound = "~/Podcast/sons/transition.wav"  # played before and after each clip
-```
-
-Optional: `films_dir` (where to look for a film named in the notes), `preferred_dub = "VFQ"`, and the `[adjust]`, `[audio]` and `[claude]` sections, all commented in the file. Check what is read with `pclips config`.
+The file is written to `~/Library/Application Support/podcleaner-clips/config.toml` on macOS and `%LOCALAPPDATA%\podcleaner-clips\config.toml` on Windows (`--config` or the `PODCLEANER_CLIPS_CONFIG` variable point elsewhere; `pclips config --path` prints it). The other settings (`[adjust]`, `[audio]`, …) are in the file, commented: remove the `#` to change one. Check what is read with `pclips config`. Without a terminal, or with `pclips init --no-input`, the commented file is written without questions.
 
 Files written for version 0.1.0, with French names (`dossier_episodes`, `fichier:`, `abreviation:`, `extraits.json`…), are still read: the tool lists the names to change, and replaces `extraits.json` with `clips.json` on the next run without rendering the clips again.
 

@@ -61,20 +61,15 @@ Le premier passage qui repère des répliques télécharge le modèle Whisper (`
 
 ## Configuration
 
-Chaque personne a son propre fichier de configuration. Créez-le, puis ouvrez-le :
+Chaque personne a son propre fichier de configuration. Créez-le en répondant à quelques questions :
 
 ```bash
 pclips init
 ```
 
-Il est créé dans `~/Library/Application Support/podcleaner-clips/config.toml` sur macOS et dans `%LOCALAPPDATA%\podcleaner-clips\config.toml` sur Windows (`--config` ou la variable `PODCLEANER_CLIPS_CONFIG` permettent d'en utiliser un autre). Retirez le `#` devant au moins les deux lignes ci-dessous. Sur Windows, écrivez les chemins avec des `/` (`"C:/Podcast/Episodes"`) ou entre apostrophes droites (`'C:\Podcast\Episodes'`) : un `\` entre guillemets est une séquence d'échappement en TOML.
+Il demande le dossier où ranger les extraits (obligatoire ; il propose de le créer), le dossier de vos films, le son de transition, le doublage préféré (VFF ou VFQ) et s'il faut utiliser Claude, en disant si Claude Code ou une clé d'API a été trouvé. Les chemins peuvent être collés ou glissés dans le terminal. Relancez `pclips init` pour changer vos réponses : les valeurs actuelles sont proposées par défaut, et le fichier n'est remplacé qu'après confirmation.
 
-```toml
-episodes_dir = "~/Podcast/Episodes"                # où ranger les extraits, un dossier par film
-transition_sound = "~/Podcast/sons/transition.wav"  # joué avant et après chaque extrait
-```
-
-Facultatif : `films_dir` (où chercher un film nommé dans les notes), `preferred_dub = "VFQ"`, et les sections `[adjust]`, `[audio]` et `[claude]`, toutes commentées dans le fichier. Vérifiez ce qui est lu avec `pclips config`.
+Le fichier est écrit dans `~/Library/Application Support/podcleaner-clips/config.toml` sur macOS et dans `%LOCALAPPDATA%\podcleaner-clips\config.toml` sur Windows (`--config` ou la variable `PODCLEANER_CLIPS_CONFIG` permettent d'en utiliser un autre ; `pclips config --path` affiche l'emplacement). Les autres réglages (`[adjust]`, `[audio]`…) sont dans le fichier, commentés : retirez le `#` pour en changer un. Vérifiez ce qui est lu avec `pclips config`. Hors terminal, ou avec `pclips init --no-input`, le fichier commenté est écrit sans questions.
 
 Les fichiers écrits pour la version 0.1.0, avec les noms en français (`dossier_episodes`, `fichier:`, `abreviation:`, `extraits.json`…), sont encore lus : l'outil liste les noms à changer et remplace `extraits.json` par `clips.json` au passage suivant, sans refaire les extraits.
 
