@@ -57,6 +57,7 @@ Skills du projet : `test-rapide` (test de bout en bout sur un film généré, av
 | Sujet | Décision |
 | --- | --- |
 | Paquet / commande | `podcleaner_clips` / `podcleaner-clips` et son alias `pclips` (`init`, `run`, `config [--path]`, `version`, `--version` ; `config init` et `config show` restent comme alias cachés). Installation : `uv tool install git+https://github.com/IvesPower/podcleaner-clips` |
+| Bannière | Nom en pixel art (demi-blocs, dégradé avec Rich, 64 colonnes) au début de `init`, `run` et de la commande seule ; jamais hors terminal ; `--no-banner` ou `PODCLEANER_CLIPS_NO_BANNER=1` ; titre sur une ligne si le terminal est trop étroit ou ne sait pas afficher les blocs |
 | Création de la configuration | `init` pose les questions (dossier des épisodes, des films, son de transition, doublage, Claude) et écrit le modèle commenté avec les réponses ; valeurs actuelles proposées par défaut, remplacement après confirmation, écriture atomique ; hors terminal ou `--no-input` : modèle commenté sans questions |
 | Configuration | TOML dans `platformdirs.user_config_dir("podcleaner-clips")/config.toml`, remplaçable par `--config` ou `PODCLEANER_CLIPS_CONFIG` |
 | Titre et dossier du film | Titre : `# ` des notes, sinon nom du fichier du film jusqu'à l'année (`Avengers (2012)`) ; dossier : titre sans accents ni `<>:"/\|?*`, ≤ 60 caractères. Film : `--film` ou `file:` |
