@@ -1,4 +1,5 @@
-"""Video clip rendering: black screen during the transition, film picture, clip sound (ffmpeg)."""
+"""Video clip rendering: black screen during the transition, film picture faded in and out of
+black, clip sound (ffmpeg)."""
 
 import os
 from fractions import Fraction
@@ -9,6 +10,9 @@ from podcleaner_clips.media import VideoInfo
 from podcleaner_clips.render_audio import ClipLayout, ffmpeg_seconds, run_ffmpeg
 
 _FALLBACK_FPS = "24"
+# Bumped when the picture changes for the same cut: a rerun then redoes the videos only.
+# 1: black screen and hard cuts. 2: fade from and to black.
+VIDEO_RENDER_VERSION = 2
 
 
 def _ratio(text: str, fallback: str) -> Fraction:
@@ -34,7 +38,8 @@ def video_filter(video: VideoInfo, layout: ClipLayout) -> str:
     """The -filter_complex graph: input 0 is the film (already cut). Labelled [v].
 
     The picture is black while the film sound has not started and after it stops, so it
-    stays in sync with the clip sound (the transition plays over black).
+    stays in sync with the clip sound (the transition plays over black). The film picture
+    fades in from black and out to black like the sound, over `layout.fade_s`.
     """
     width, height = display_size(video)
     fps = _ratio(video.fps, _FALLBACK_FPS)
@@ -46,6 +51,12 @@ def video_filter(video: VideoInfo, layout: ClipLayout) -> str:
         "format=yuv420p",
         f"trim=duration={ffmpeg_seconds(layout.clip_s)}",
     ]
+    fade = min(layout.fade_s, layout.clip_s / 2)
+    if fade > 0:
+        steps += [
+            f"fade=t=in:st=0:d={ffmpeg_seconds(fade)}",
+            f"fade=t=out:st={ffmpeg_seconds(layout.clip_s - fade)}:d={ffmpeg_seconds(fade)}",
+        ]
     before = layout.film_offset
     after = layout.total_s - layout.film_offset - layout.clip_s
     if before > 0 or after > 0:

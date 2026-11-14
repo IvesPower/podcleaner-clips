@@ -44,13 +44,14 @@ Skills du projet : `test-rapide` (test de bout en bout sur un film généré, av
 | Repérage | Sous-titres français en texte s'il y en a (hors « forcés »), puis Whisper ; coupes toujours sur les mots du doublage transcrits par Whisper |
 | Abréviation | Proposée par Claude, initiales du titre sans Claude, puis figée dans le fichier de notes |
 | Nommage | `{abréviation}-{numéro}-{premiers-mots-de-la-référence}.{format}` |
-| Fondus | 0,7 s à l'ouverture et à la fermeture |
+| Fondus | 0,7 s à l'ouverture et à la fermeture, pour le son et l'image (fondu depuis et vers le noir) |
 | Son de transition | Commence juste avant l'extrait ; le fondu d'ouverture se fait pendant sa fin ; même chose à l'envers en fin d'extrait |
-| Transition vidéo | Écran noir pendant le son de transition |
+| Transition vidéo | Écran noir pendant le son de transition ; l'image du film part du noir et y retourne en même temps que le son |
 | Sorties | `{episodes_dir}/{nom-film}/audio/` (WAV 48 kHz, -16 LUFS, -1 dBTP), `…/video/` (MP4 H.264 + AAC), `…/clips.json` |
 | Relance | Ne réécrit que les extraits ajoutés ou modifiés |
 | Chemins | Fichier de configuration par personne, aucun chemin en dur |
-| Hors périmètre v1 | Lecteur en direct, effets de transition vidéo, sous-titres |
+| Hors périmètre v1 | Lecteur en direct, effets de transition vidéo autres que le fondu au noir, sous-titres |
+| Version du rendu vidéo | `VIDEO_RENDER_VERSION` (`render_video.py`) notée par extrait dans `clips.json` (`video_version`) ; l'augmenter quand l'image change pour une même coupe : la relance refait alors les MP4 seuls, jamais les WAV |
 
 ## Décisions prises par le plan
 

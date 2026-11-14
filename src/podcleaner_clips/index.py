@@ -96,6 +96,7 @@ class ClipEntry:
     claude_advice: ClaudeAdvice | None
     duration_s: float
     files: dict[str, str] = field(default_factory=dict)
+    video_version: int = 1  # how the video file was drawn (render_video.VIDEO_RENDER_VERSION)
 
 
 @dataclass
@@ -219,6 +220,7 @@ def _clip_to_json(c: ClipEntry) -> dict[str, Any]:
         "claude_advice": _advice_to_json(c.claude_advice) if c.claude_advice else None,
         "duration_s": round(c.duration_s, 3),
         "files": {k: v.replace("\\", "/") for k, v in c.files.items()},  # same on Windows
+        "video_version": c.video_version,
     }
 
 
@@ -237,6 +239,7 @@ def _clip_from_json(d: dict[str, Any]) -> ClipEntry:
         claude_advice=_advice_from_json(d["claude_advice"]) if d["claude_advice"] else None,
         duration_s=float(d["duration_s"]),
         files=dict(d["files"]),
+        video_version=int(d.get("video_version", 1)),  # missing: drawn before the fades
     )
 
 

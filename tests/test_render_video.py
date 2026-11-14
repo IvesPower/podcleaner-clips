@@ -10,7 +10,7 @@ from podcleaner_clips.config import Settings
 from podcleaner_clips.errors import ClipsError
 from podcleaner_clips.media import AudioTrack, VideoInfo, probe
 from podcleaner_clips.render_audio import ClipLayout, render_audio
-from podcleaner_clips.render_video import display_size, render_video
+from podcleaner_clips.render_video import display_size, render_video, video_filter
 
 S = Settings(episodes_dir=Path("episodes"))
 VFF = AudioTrack(0, "fre", "Français VFF", 2)
@@ -69,14 +69,34 @@ def test_black_during_transitions(test_film, transition_wav, tmp_path):
     mp4 = render(test_film, WITH_TRANSITION, transition_wav, tmp_path)
 
     assert luma(mp4, 0.2) < 20  # opening transition
-    assert luma(mp4, 0.8 + 1.0) > 20  # film picture
+    assert luma(mp4, 0.8 + 1.0) > 20  # film picture, after its fade-in
     assert luma(mp4, 7.3) < 20  # closing transition, after the film sound
 
 
-def test_no_transition_has_no_black(test_film, tmp_path):
+def lit(path: Path, t: float, full: float) -> float:
+    """How lit the frame at `t` is, from 0 (black, luma 16) to 1 (as bright as `full`)."""
+    return (luma(path, t) - 16) / (full - 16)
+
+
+def test_film_picture_fades_from_and_to_black(test_film, transition_wav, tmp_path):
+    mp4 = render(test_film, WITH_TRANSITION, transition_wav, tmp_path)
+    start = WITH_TRANSITION.film_offset  # the film picture and sound start together
+    end = start + WITH_TRANSITION.clip_s
+    full = luma(mp4, start + 2.0)
+
+    assert lit(mp4, start + 0.05, full) < 0.25  # beginning of the fade-in
+    assert 0.25 < lit(mp4, start + 0.35, full) < 0.75  # halfway
+    assert lit(mp4, start + 0.8, full) > 0.85  # after the 0.7 s fade
+    assert lit(mp4, end - 0.8, full) > 0.85  # before the fade-out
+    assert lit(mp4, end - 0.05, full) < 0.25  # end of the fade-out
+
+
+def test_no_transition_fades_in_from_black(test_film, tmp_path):
     mp4 = render(test_film, ClipLayout(2.0, 8.0, 0.7, None), None, tmp_path)
 
-    assert luma(mp4, 0.0) > 20
+    full = luma(mp4, 2.0)
+    assert full > 20
+    assert lit(mp4, 0.0, full) < 0.2
     assert float(streams(mp4)["video"]["duration"]) == pytest.approx(6.0, abs=0.1)
 
 
@@ -100,3 +120,19 @@ def test_failed_render_leaves_no_file(test_film, tmp_path):
     with pytest.raises(ClipsError):
         render_video(test_film, video, WITH_TRANSITION, tmp_path / "missing.wav", out)
     assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize(
+    "layout, fades",
+    [
+        (ClipLayout(10.0, 16.0, 0.7, 1.5), ["fade=t=in:st=0:d=0.7", "fade=t=out:st=5.3:d=0.7"]),
+        (ClipLayout(10.0, 11.0, 0.7, None), ["fade=t=in:st=0:d=0.5", "fade=t=out:st=0.5:d=0.5"]),
+        (ClipLayout(10.0, 16.0, 0.0, None), []),
+    ],
+)
+def test_video_filter_fades(layout, fades):
+    graph = video_filter(VideoInfo(1920, 800, "24", "1:1"), layout).removesuffix("[v]")
+    steps = graph.split(",")
+    assert [step for step in steps if step.startswith("fade=")] == fades
+    if fades and layout.transition_s:  # on the film picture, before the black is added
+        assert steps.index(fades[-1]) < next(i for i, x in enumerate(steps) if x.startswith("tpad"))

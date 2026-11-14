@@ -23,7 +23,7 @@ Notes are taken quickly, during the film: timecodes are approximate (about ten s
 | Cut adjustment | Keeps the noted scene, but snaps its start and end to sentence boundaries within ±15 s, without cutting a word, with every reference included | faster-whisper or mlx-whisper | Choose the scene's exact bounds so that it makes sense |
 | Film abbreviation | Gives the film a short, stable abbreviation (e.g. "DDC" for Le Dîner de cons), kept for all its clips | None | Suggest the abbreviation; without Claude, the tool uses the title's initials |
 | Clip audio | Fade-in and fade-out, transition sound at the start and the end, normalization to -16 LUFS and -1 dBTP | ffmpeg | None |
-| Clip video | Same cut as the audio, black screen during the transition sound | ffmpeg | None |
+| Clip video | Same cut as the audio, black screen during the transition sound, the film picture fading in from and out to black with the sound | ffmpeg | None |
 | Clip index | Writes one JSON file per film with each clip, its reference, its duration and its files | None | None |
 
 The command is `podcleaner-clips`, with the short alias `pclips`; it is installed with `uv tool install` and runs from any folder. Commands: `init` (creates the configuration file by asking a few questions in the console: episodes folder, films folder, transition sound, preferred dub, Claude), `run` (cuts the clips of a notes file), `config` (shows the configuration), `version`.
@@ -105,7 +105,7 @@ A new run on the same film only rewrites the clips added or changed in the notes
 
 ## Out of scope, decisions and open questions
 
-The first version does not include the live player, video transition effects or burning subtitles into the clips.
+The first version does not include the live player, video transition effects other than the fade to black (a transition video is planned) or burning subtitles into the clips.
 
 | Topic | Decision |
 | --- | --- |
@@ -119,9 +119,9 @@ The first version does not include the live player, video transition effects or 
 | Naming | `{abbreviation}-{number}-{first-words-of-the-reference}.{format}` |
 | Abbreviation | Suggested by Claude, title initials without Claude, then frozen in the notes file |
 | Language | Always a VF track, for audio and video alike; VFF preferred when there is also a VFQ (configurable) |
-| Fades | 0.7 s at the start and the end |
+| Fades | 0.7 s at the start and the end, sound and picture (the picture fades from and to black) |
 | Transition sound | Starts just before the clip; the fade-in happens during its end, and the film sound is at 100% once the transition is over. The same in reverse at the end of the clip |
-| Video transition | Black screen during the transition sound, effects to be added later |
+| Video transition | Black screen during the transition sound; the film picture fades in from black and out to black, at the same time as the sound |
 | Output formats | 48 kHz WAV at -16 LUFS for audio, H.264 MP4 for video |
 | Paths | One configuration file per person, no hard-coded path |
 
