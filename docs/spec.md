@@ -26,7 +26,9 @@ Notes are taken quickly, during the film: timecodes are approximate (about ten s
 | Clip video | Same cut as the audio, black screen during the transition sound | ffmpeg | None |
 | Clip index | Writes one JSON file per film with each clip, its reference, its duration and its files | None | None |
 
-Command options:
+The command is `podcleaner-clips`, with the short alias `pclips`; it is installed with `uv tool install` and runs from any folder. Commands: `init` (creates the configuration file), `run` (cuts the clips of a notes file), `config` (shows the configuration), `version`.
+
+Command options (`run`):
 
 - `--film PATH`: the film file, when the notes file does not give it.
 - `--no-transition`: no transition sound, fades only.

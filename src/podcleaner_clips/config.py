@@ -8,6 +8,7 @@ from typing import Any
 
 from platformdirs import user_config_dir
 
+from podcleaner_clips import prog_name
 from podcleaner_clips.errors import ClipsError
 
 APP_NAME = "podcleaner-clips"
@@ -155,7 +156,7 @@ def load_settings(path: Path | None = None) -> Settings:
     path = resolve_config_path(path)
     if not path.is_file():
         raise ClipsError(
-            f"Configuration file not found: {path}\nCreate it with: podcleaner-clips config init"
+            f"Configuration file not found: {path}\nCreate it with: {prog_name()} init"
         )
     try:
         data = tomllib.loads(path.read_text(encoding="utf-8-sig"))

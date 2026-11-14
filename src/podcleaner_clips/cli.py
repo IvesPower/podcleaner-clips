@@ -4,23 +4,14 @@ from typing import Annotated
 
 import typer
 
-from podcleaner_clips import __version__, config
+from podcleaner_clips import __version__, config, prog_name
 from podcleaner_clips.errors import ClipsError
 
 app = typer.Typer(
     help="Cut the movie clips noted while watching.",
-    no_args_is_help=True,
+    invoke_without_command=True,
     pretty_exceptions_enable=False,
 )
-
-
-@app.callback()
-def _root() -> None:
-    """Keeps subcommands even when there is only one."""
-
-
-config_app = typer.Typer(help="Create or show the configuration file.", no_args_is_help=True)
-app.add_typer(config_app, name="config")
 
 ConfigOption = Annotated[
     Path | None,
@@ -31,24 +22,37 @@ ConfigOption = Annotated[
 ]
 
 
-@app.command()
-def version() -> None:
-    """Show the version."""
-    typer.echo(__version__)
+def _print_version(value: bool) -> None:
+    if value:
+        typer.echo(__version__)
+        raise typer.Exit()
 
 
-@config_app.command("init")
-def config_init(config_path: ConfigOption = None) -> None:
-    """Create a commented configuration file to fill in."""
+@app.callback()
+def _root(
+    ctx: typer.Context,
+    _version: Annotated[
+        bool,
+        typer.Option(
+            "--version", callback=_print_version, is_eager=True, help="Show the version and exit."
+        ),
+    ] = False,
+) -> None:
+    """Cut the movie clips noted while watching."""
+    if ctx.invoked_subcommand is None:  # the command alone: its help, not an error
+        typer.echo(ctx.get_help())
+
+
+@app.command("init")
+def init_command(config_path: ConfigOption = None) -> None:
+    """Create your configuration file."""
     path = config.resolve_config_path(config_path)
     config.write_template(path)
     typer.echo(f"Configuration file created: {path}")
     typer.echo("Open it and set at least episodes_dir and transition_sound.")
 
 
-@config_app.command("show")
-def config_show(config_path: ConfigOption = None) -> None:
-    """Show the configuration as read, defaults included."""
+def _show(config_path: Path | None) -> None:
     path = config.resolve_config_path(config_path)
     settings = config.load_settings(path)
     typer.echo(f"File: {path}")
@@ -56,6 +60,38 @@ def config_show(config_path: ConfigOption = None) -> None:
         typer.echo(f"{key} = {value}")
     for notice in settings.notices:
         typer.echo(f"⚠ {notice}", err=True)
+
+
+config_app = typer.Typer(invoke_without_command=True)
+app.add_typer(config_app, name="config")
+
+
+@config_app.callback()
+def config_command(
+    ctx: typer.Context,
+    path_only: Annotated[
+        bool, typer.Option("--path", help="Only print where the configuration file is.")
+    ] = False,
+    config_path: ConfigOption = None,
+) -> None:
+    """Show the configuration as read, defaults included."""
+    if ctx.invoked_subcommand is not None:
+        return
+    if path_only:
+        typer.echo(config.resolve_config_path(config_path))
+    else:
+        _show(config_path)
+
+
+# Older spellings, kept working but hidden from the help.
+@config_app.command("show", hidden=True)
+def config_show(config_path: ConfigOption = None) -> None:
+    _show(config_path)
+
+
+@config_app.command("init", hidden=True)
+def config_init(config_path: ConfigOption = None) -> None:
+    init_command(config_path)
 
 
 @app.command("run")
@@ -102,11 +138,17 @@ def run_command(
         raise typer.Exit(1)
 
 
+@app.command()
+def version() -> None:
+    """Show the version."""
+    typer.echo(__version__)
+
+
 def main() -> None:
     # Click standalone mode handles usage errors itself (exit code 2);
     # ClipsError is not a Click exception, so it propagates up to here.
     try:
-        app()
+        app(prog_name=prog_name())
     except ClipsError as exc:
         typer.echo(f"Error: {exc}", err=True)
         sys.exit(2)

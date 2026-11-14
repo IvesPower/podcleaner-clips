@@ -19,7 +19,7 @@ file: Avengers (2012) Bluray-1080p.mkv
 
 Le fichier de notes complet de cet exemple est dans [`examples/avengers.md`](examples/avengers.md).
 
-Ensuite, `podcleaner-clips run notes.md` :
+Ensuite, `pclips run notes.md` :
 
 - choisit la piste en version française (VF), celle de France (VFF) quand il y a aussi une version québécoise (VFQ) ; prévient si aucune piste n'est marquée française ;
 - retrouve chaque réplique dans les sous-titres français quand le film en a, puis dans le doublage avec Whisper (seulement autour de chaque extrait, jamais le film entier) ;
@@ -44,11 +44,18 @@ Il faut :
 - [ffmpeg](https://ffmpeg.org/) dans le `PATH` : `brew install ffmpeg` sur macOS, `winget install ffmpeg` sur Windows.
 
 ```bash
-git clone https://github.com/IvesPower/podcleaner-clips.git
-cd podcleaner-clips
-uv sync
-uv run podcleaner-clips version
+uv tool install git+https://github.com/IvesPower/podcleaner-clips
+pclips --version
 ```
+
+Cela installe deux noms pour la même commande, utilisables depuis n'importe quel dossier : `podcleaner-clips` et sa forme courte `pclips`. Si la commande est introuvable, lancez `uv tool update-shell` et ouvrez un nouveau terminal (il ajoute le dossier des outils de uv, `~/.local/bin`, au `PATH`). Mise à jour : `uv tool upgrade podcleaner-clips`.
+
+| Commande | Rôle |
+| --- | --- |
+| `pclips init` | Crée votre fichier de configuration |
+| `pclips run notes.md` | Découpe les extraits notés pour un film |
+| `pclips config` | Affiche la configuration telle qu'elle est lue (`--path` : seulement l'emplacement du fichier) |
+| `pclips --version` | Affiche la version |
 
 Le premier passage qui repère des répliques télécharge le modèle Whisper (`large-v3-turbo`, plus de 1 Go). Sur un Mac Apple Silicon, il tourne avec MLX ; ailleurs, avec faster-whisper sur le processeur.
 
@@ -57,7 +64,7 @@ Le premier passage qui repère des répliques télécharge le modèle Whisper (`
 Chaque personne a son propre fichier de configuration. Créez-le, puis ouvrez-le :
 
 ```bash
-uv run podcleaner-clips config init
+pclips init
 ```
 
 Il est créé dans `~/Library/Application Support/podcleaner-clips/config.toml` sur macOS et dans `%LOCALAPPDATA%\podcleaner-clips\config.toml` sur Windows (`--config` ou la variable `PODCLEANER_CLIPS_CONFIG` permettent d'en utiliser un autre). Retirez le `#` devant au moins les deux lignes ci-dessous. Sur Windows, écrivez les chemins avec des `/` (`"C:/Podcast/Episodes"`) ou entre apostrophes droites (`'C:\Podcast\Episodes'`) : un `\` entre guillemets est une séquence d'échappement en TOML.
@@ -67,7 +74,7 @@ episodes_dir = "~/Podcast/Episodes"                # où ranger les extraits, un
 transition_sound = "~/Podcast/sons/transition.wav"  # joué avant et après chaque extrait
 ```
 
-Facultatif : `films_dir` (où chercher un film nommé dans les notes), `preferred_dub = "VFQ"`, et les sections `[adjust]`, `[audio]` et `[claude]`, toutes commentées dans le fichier. Vérifiez ce qui est lu avec `uv run podcleaner-clips config show`.
+Facultatif : `films_dir` (où chercher un film nommé dans les notes), `preferred_dub = "VFQ"`, et les sections `[adjust]`, `[audio]` et `[claude]`, toutes commentées dans le fichier. Vérifiez ce qui est lu avec `pclips config`.
 
 Les fichiers écrits pour la version 0.1.0, avec les noms en français (`dossier_episodes`, `fichier:`, `abreviation:`, `extraits.json`…), sont encore lus : l'outil liste les noms à changer et remplace `extraits.json` par `clips.json` au passage suivant, sans refaire les extraits.
 
@@ -81,7 +88,7 @@ Les fichiers écrits pour la version 0.1.0, avec les noms en français (`dossier
 ## Lancer
 
 ```bash
-uv run podcleaner-clips run notes.md
+pclips run notes.md
 ```
 
 | Option | Effet |
@@ -112,6 +119,10 @@ L'outil joint Claude de l'une de ces deux façons, au choix avec `backend` dans 
 Les contributions sont les bienvenues. Lisez [CONTRIBUTING.fr.md](CONTRIBUTING.fr.md) : chaque modification passe par une pull request relue par le mainteneur, et les commits suivent [Conventional Commits](https://www.conventionalcommits.org/). Le [cahier des charges](docs/spec.fr.md) et le [plan d'implémentation](docs/superpowers/plans/2026-11-06-podcleaner-clips-v1.fr.md) expliquent les choix faits.
 
 ```bash
+git clone https://github.com/IvesPower/podcleaner-clips.git
+cd podcleaner-clips
+uv sync                  # le projet et ses outils
+uv run pclips            # la commande, depuis ce clone
 uv run pytest            # tests rapides (sans Whisper ni réseau)
 uv run pytest -m slow    # tests qui chargent un modèle Whisper
 uv run ruff check

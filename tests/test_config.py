@@ -81,12 +81,12 @@ def test_argument_beats_env_var(tmp_path, monkeypatch):
     assert load_settings(cfg).episodes_dir == tmp_path / "ep"
 
 
-def test_missing_file_message_mentions_config_init(tmp_path):
+def test_missing_file_message_mentions_init(tmp_path):
     missing = tmp_path / "nope" / "config.toml"
     with pytest.raises(ClipsError) as exc:
         load_settings(missing)
     assert str(missing) in str(exc.value)
-    assert "podcleaner-clips config init" in str(exc.value)
+    assert "podcleaner-clips init" in str(exc.value)
 
 
 def test_missing_episodes_dir_is_an_error(tmp_path):
