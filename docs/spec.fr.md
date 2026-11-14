@@ -26,7 +26,9 @@ Les notes sont prises vite, pendant le film : les timecodes sont approximatifs (
 | Vidéo des extraits | Même découpe que l'audio, écran noir pendant le son de transition | ffmpeg | Aucun |
 | Index des extraits | Écrit un fichier JSON par film avec chaque extrait, sa référence, sa durée et ses fichiers | Aucun | Aucun |
 
-Options de la commande :
+La commande s'appelle `podcleaner-clips`, avec l'alias court `pclips` ; elle s'installe avec `uv tool install` et se lance depuis n'importe quel dossier. Commandes : `init` (crée le fichier de configuration), `run` (découpe les extraits d'un fichier de notes), `config` (affiche la configuration), `version`.
+
+Options de la commande (`run`) :
 
 - `--film CHEMIN` : le fichier du film, si le fichier de notes ne l'indique pas.
 - `--no-transition` : pas de son de transition, seulement les fondus.

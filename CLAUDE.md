@@ -13,7 +13,7 @@ uv run pytest              # tests rapides (sans Whisper ni réseau)
 uv run pytest -m slow      # tests qui chargent un modèle Whisper
 uv run ruff check          # lint
 uv run ruff format         # formatage
-uv run podcleaner-clips    # la CLI
+uv run pclips              # la CLI (alias court de podcleaner-clips)
 ```
 
 Le hook `.claude/hooks/python_checks.py` lance Ruff et les tests rapides après chaque modification d'un `.py`.
@@ -56,7 +56,7 @@ Skills du projet : `test-rapide` (test de bout en bout sur un film généré, av
 
 | Sujet | Décision |
 | --- | --- |
-| Paquet / commande | `podcleaner_clips` / `podcleaner-clips` (`run`, `config init`, `config show`, `version`) |
+| Paquet / commande | `podcleaner_clips` / `podcleaner-clips` et son alias `pclips` (`init`, `run`, `config [--path]`, `version`, `--version` ; `config init` et `config show` restent comme alias cachés). Installation : `uv tool install git+https://github.com/IvesPower/podcleaner-clips` |
 | Configuration | TOML dans `platformdirs.user_config_dir("podcleaner-clips")/config.toml`, remplaçable par `--config` ou `PODCLEANER_CLIPS_CONFIG` |
 | Titre et dossier du film | Titre : `# ` des notes, sinon nom du fichier du film jusqu'à l'année (`Avengers (2012)`) ; dossier : titre sans accents ni `<>:"/\|?*`, ≤ 60 caractères. Film : `--film` ou `file:` |
 | Slug | Minuscules, sans accents, mots entiers jusqu'à 40 caractères ; vide → `extrait` |

@@ -22,6 +22,7 @@ Repository = "https://github.com/IvesPower/podcleaner-clips"
 
 [project.scripts]
 podcleaner-clips = "podcleaner_clips.cli:main"
+pclips = "podcleaner_clips.cli:main"  # short alias, same command
 
 [dependency-groups]
 dev = ["pytest", "ruff"]
