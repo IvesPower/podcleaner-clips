@@ -14,6 +14,7 @@ import subprocess
 import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass, replace
+from pathlib import Path
 from typing import Any
 
 import anthropic
@@ -93,8 +94,20 @@ def _run(args: list[str], stdin: str, timeout: float) -> subprocess.CompletedPro
 
 
 def find_cli() -> str | None:
-    """Path of the Claude Code CLI (`claude`, `claude.exe` or `claude.cmd`), if installed."""
-    return shutil.which("claude")
+    """Path of the Claude Code CLI (`claude`, `claude.exe` or `claude.cmd`), if installed.
+
+    Looks in PATH, then where the Claude Code installers put it: the terminal that runs this
+    tool does not always have that folder in its PATH.
+    """
+    found = shutil.which("claude")
+    if found:
+        return found
+    home = Path.home()
+    for folder in (home / ".local" / "bin", home / ".claude" / "local"):
+        found = shutil.which("claude", path=str(folder))
+        if found:
+            return found
+    return None
 
 
 def cli_logged_in(cli: str, runner: Runner = _run) -> bool | None:
