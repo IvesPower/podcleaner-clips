@@ -74,23 +74,23 @@ def test_abbreviation_without_key_uses_initials(monkeypatch):
 
 
 def test_abbreviation_invalid_answer_falls_back():
-    client = ClaudeClient(S, client=fake({"abreviation": "Le dîner"}))
+    client = ClaudeClient(S, client=fake({"abbreviation": "Le dîner"}))
     assert client.propose_abbreviation("Le Dîner de cons", None) == ("DDC", None)
 
 
 def test_abbreviation_valid_answer():
-    client = ClaudeClient(S, client=fake({"abreviation": "DDC", "raison": "initiales"}))
+    client = ClaudeClient(S, client=fake({"abbreviation": "DDC", "reason": "initiales"}))
     abbr, advice = client.propose_abbreviation("Le Dîner de cons", "Le Diner de cons.mkv")
     assert abbr == "DDC"
     assert isinstance(advice, ClaudeAdvice)
-    assert advice.kind == "abreviation"
+    assert advice.kind == "abbreviation"
     assert advice.answer == "DDC"
     assert advice.reason == "initiales"
     assert advice.model == S.claude_model
 
 
 def test_abbreviation_request_uses_the_configured_model():
-    messages = FakeMessages({"abreviation": "DDC", "raison": ""})
+    messages = FakeMessages({"abbreviation": "DDC", "reason": ""})
     ClaudeClient(S, client=SimpleNamespace(messages=messages)).propose_abbreviation("X", None)
     assert messages.calls[0]["model"] == S.claude_model
     assert messages.calls[0]["output_config"]["format"]["type"] == "json_schema"
@@ -100,12 +100,12 @@ def test_choose_bounds_applies_claude_choice():
     first = index_of("Écoute-moi")
     last = max(i for i, w in enumerate(WORDS) if w.text == "bien.")  # "Tu le sais très bien."
     client = ClaudeClient(
-        S, client=fake({"premier_mot": first, "dernier_mot": last, "raison": "scène entière"})
+        S, client=fake({"first_word": first, "last_word": last, "reason": "scène entière"})
     )
     cut, advice = client.choose_bounds(WORDS, FRAGMENTS[0], decision(), 100.0, 120.0, S)
     assert cut.method == "claude"
     assert cut.start <= WORDS[first].start and cut.end >= WORDS[last].end
-    assert advice is not None and advice.kind == "bornes"
+    assert advice is not None and advice.kind == "bounds"
     assert advice.reason == "scène entière"
 
 
@@ -113,7 +113,7 @@ def test_choose_bounds_keeps_heuristic_score_and_doubt():
     d = decision()
     first = index_of("Écoute-moi")
     last = max(i for i, w in enumerate(WORDS) if w.text == "bien.")
-    client = ClaudeClient(S, client=fake({"premier_mot": first, "dernier_mot": last, "raison": ""}))
+    client = ClaudeClient(S, client=fake({"first_word": first, "last_word": last, "reason": ""}))
     cut, _ = client.choose_bounds(WORDS, FRAGMENTS[0], d, 100.0, 120.0, S)
     assert cut.score == d.cut.score
     assert cut.doubt == d.cut.doubt
@@ -121,7 +121,7 @@ def test_choose_bounds_keeps_heuristic_score_and_doubt():
 
 def test_choose_bounds_rejects_out_of_bounds():
     d = decision()
-    client = ClaudeClient(S, client=fake({"premier_mot": 0, "dernier_mot": 999, "raison": ""}))
+    client = ClaudeClient(S, client=fake({"first_word": 0, "last_word": 999, "reason": ""}))
     cut, advice = client.choose_bounds(WORDS, FRAGMENTS[0], d, 100.0, 120.0, S)
     assert cut == d.cut
     assert advice is not None  # the rejected opinion is still recorded
@@ -130,7 +130,7 @@ def test_choose_bounds_rejects_out_of_bounds():
 def test_choose_bounds_rejects_cut_missing_a_fragment():
     d = decision()
     first, last = index_of("Écoute-moi"), index_of("Ce")  # stops inside the reference
-    client = ClaudeClient(S, client=fake({"premier_mot": first, "dernier_mot": last, "raison": ""}))
+    client = ClaudeClient(S, client=fake({"first_word": first, "last_word": last, "reason": ""}))
     cut, _ = client.choose_bounds(WORDS, FRAGMENTS[0], d, 100.0, 120.0, S)
     assert cut == d.cut
 
@@ -142,7 +142,7 @@ def test_choose_bounds_unavailable_keeps_decision(monkeypatch):
 
 
 def test_choose_bounds_sends_numbered_words_and_notes():
-    messages = FakeMessages({"premier_mot": 0, "dernier_mot": 999, "raison": ""})
+    messages = FakeMessages({"first_word": 0, "last_word": 999, "reason": ""})
     client = ClaudeClient(S, client=SimpleNamespace(messages=messages))
     client.choose_bounds(WORDS, FRAGMENTS[0], decision(), 100.0, 120.0, S)
     prompt = json.dumps(messages.calls[0]["messages"], ensure_ascii=False)
@@ -161,7 +161,7 @@ def test_api_error_falls_back_with_warning():
     assert "Claude" in client.warnings[0]
 
 
-@pytest.mark.parametrize("answer", ["not json", {"premier_mot": "a"}, {}])
+@pytest.mark.parametrize("answer", ["not json", {"first_word": "a"}, {}])
 def test_malformed_bounds_answer_keeps_decision(answer):
     d = decision()
     client = ClaudeClient(S, client=fake(answer))

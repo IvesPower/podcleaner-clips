@@ -6,7 +6,7 @@ The legacy form `- 00:12:34 > 00:12:51 | réplique` is still accepted. Any other
 
 import codecs
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from podcleaner_clips.errors import ClipsError
@@ -14,7 +14,16 @@ from podcleaner_clips.naming import format_tc, parse_tc
 
 _BULLET = re.compile(r"^[-*]\s+")
 _LEGACY = re.compile(r"(?P<start>[^>|]+?)\s*>\s*(?P<end>[^>|]+?)\s*\|\s*(?P<ref>.*)")
-_HEADER_KEY = re.compile(r"(?P<key>fichier|abr[eé]viation)\s*:\s*(?P<value>.*)", re.IGNORECASE)
+# `fichier:` and `abreviation:` are the French names of version 0.1.0, still read.
+_HEADER_KEY = re.compile(
+    r"(?P<key>file|fichier|abbreviation|abr[eé]viation)\s*:\s*(?P<value>.*)", re.IGNORECASE
+)
+_FILE_KEYS = {"file", "fichier"}
+_LEGACY_HEADER_KEYS = {
+    "fichier": "file",
+    "abreviation": "abbreviation",
+    "abréviation": "abbreviation",
+}
 _LEADING_SEPARATOR = re.compile(r"^[:\-–—]+\s*")
 _FRAGMENT_SEPARATOR = re.compile(r"…|\.\.\.|\s[-–—]\s")
 _MAX_TC_TOKENS = 3  # "25 min 30"
@@ -37,6 +46,7 @@ class Notes:
     abbreviation: str | None
     clips: list[ClipNote]
     errors: list[str]
+    notices: list[str] = field(default_factory=list)
 
 
 def split_fragments(reference: str) -> list[str]:
@@ -87,6 +97,7 @@ def read_notes(path: Path) -> Notes:
     title = film_file = abbreviation = None
     clips: list[ClipNote] = []
     errors: list[str] = []
+    legacy: list[str] = []
     number = 0
     for line_no, line in enumerate(lines, start=1):
         parsed = _parse_clip_line(line)
@@ -96,10 +107,14 @@ def read_notes(path: Path) -> Notes:
                 header = _HEADER_KEY.fullmatch(stripped)
                 if stripped.startswith("# ") and title is None:
                     title = stripped[2:].strip() or None
-                elif header and header["key"].lower() == "fichier":
-                    film_file = header["value"].strip() or None
                 elif header:
-                    abbreviation = header["value"].strip().upper() or None
+                    key = header["key"].lower()
+                    if key in _LEGACY_HEADER_KEYS:
+                        legacy.append(f"{header['key']}: → {_LEGACY_HEADER_KEYS[key]}:")
+                    if key in _FILE_KEYS:
+                        film_file = header["value"].strip() or None
+                    else:
+                        abbreviation = header["value"].strip().upper() or None
             continue
 
         number += 1
@@ -115,11 +130,16 @@ def read_notes(path: Path) -> Notes:
             clips.append(
                 ClipNote(number, start, end, reference, split_fragments(reference), line_no)
             )
-    return Notes(title, film_file, abbreviation, clips, errors)
+    notices = []
+    if legacy:
+        notices.append(
+            f"{path.name} uses old French header names; rename them: " + ", ".join(legacy)
+        )
+    return Notes(title, film_file, abbreviation, clips, errors, notices)
 
 
 def write_abbreviation(path: Path, abbr: str) -> None:
-    """Writes or replaces `abreviation:` in the header, leaving the rest of the file untouched."""
+    """Writes or replaces `abbreviation:` in the header, leaving the rest of the file untouched."""
     data = path.read_bytes()
     bom = data.startswith(codecs.BOM_UTF8)
     lines = data.decode("utf-8-sig").splitlines(keepends=True)
@@ -132,10 +152,9 @@ def write_abbreviation(path: Path, abbr: str) -> None:
             break
         stripped = line.strip()
         header = _HEADER_KEY.fullmatch(stripped)
-        if header and header["key"].lower() != "fichier":
-            key = stripped.split(":", 1)[0]
+        if header and header["key"].lower() not in _FILE_KEYS:
             ending = line[len(line.rstrip("\r\n")) :]
-            lines[i] = f"{key}: {abbr}{ending}"
+            lines[i] = f"abbreviation: {abbr}{ending}"
             replaced = True
             break
         if header or (stripped.startswith("# ") and insert_at == 0):
@@ -143,7 +162,7 @@ def write_abbreviation(path: Path, abbr: str) -> None:
     if not replaced:
         if insert_at and not lines[insert_at - 1].endswith(("\n", "\r")):
             lines[insert_at - 1] += newline
-        lines.insert(insert_at, f"abreviation: {abbr}{newline}")
+        lines.insert(insert_at, f"abbreviation: {abbr}{newline}")
 
     text = "".join(lines)
     path.write_bytes((codecs.BOM_UTF8 if bom else b"") + text.encode("utf-8"))

@@ -41,8 +41,8 @@ One text or Markdown file per film, written while watching. One line per clip, i
 
 ```markdown
 # Le Dîner de cons
-fichier: Le Diner de cons (1998).mkv
-abreviation: DDC
+file: Le Diner de cons (1998).mkv
+abbreviation: DDC
 
 12:34 il s'appelle Juste Leblanc 12:51
 47:02 une bonne tête … de vainqueur 47:20
@@ -51,14 +51,12 @@ abreviation: DDC
 La scène du téléphone est trop longue pour un extrait.
 ```
 
-The keys of the notes file stay in French (`fichier` = file, `abreviation` = abbreviation).
-
 - **Timecodes**: `HH:MM:SS`, or `MM:SS` under an hour (`45:12` = 45 min 12 s). Common typos are accepted: `6;25` (semicolon), `25 min 30`. They are approximate: about ten seconds off is normal.
 - **Reference**: a few words of the line, from memory, not necessarily exact. A long scene can have several fragments, separated by `…`, `...` or ` - `; each one must be inside the clip.
-- **Optional header**: `# Title`, `fichier:` and `abreviation:`. Without `fichier:`, the film is given with `--film`. Without a title, the tool derives it from the film's file name (`The Night Before (2015) Bluray-1080p.mkv` → `The Night Before (2015)`).
+- **Optional header**: `# Title`, `file:` and `abbreviation:` (the French names `fichier:` and `abreviation:` of version 0.1.0 are still read). Without `file:`, the film is given with `--film`. Without a title, the tool derives it from the film's file name (`The Night Before (2015) Bluray-1080p.mkv` → `The Night Before (2015)`).
 - **Other lines**: any line that does not start and end with a timecode is ignored, so other notes can stay in the same file. The former form `- 00:12:34 > 00:12:51 | line` is still accepted.
 
-The `abreviation` line is optional. If it is missing, the tool asks Claude for one and writes it into the file so that it no longer changes. Each clip's name starts with the first words of its reference: `DDC-01-il-s-appelle-juste-leblanc.wav`.
+The `abbreviation` line is optional. If it is missing, the tool asks Claude for one and writes it into the file so that it no longer changes. Each clip's name starts with the first words of its reference: `DDC-01-il-s-appelle-juste-leblanc.wav`.
 
 ## Architecture
 
@@ -94,12 +92,12 @@ Le Diner de cons/
   video/
     DDC-01-il-s-appelle-juste-leblanc.mp4
     DDC-02-une-bonne-tete-de-vainqueur.mp4
-  extraits.json
+  clips.json
 ```
 
 - **Audio**: 48 kHz WAV, normalized to -16 LUFS and -1 dBTP, so that all clips play at the same volume live.
 - **Video**: H.264 MP4 with AAC sound, same cut and same sound as the audio.
-- **Index** (`extraits.json`): for each clip, the number, the reference, the noted and chosen timecodes, the duration and the file paths. This is the file the future live player will read.
+- **Index** (`clips.json`): for each clip, the number, the reference, the noted and chosen timecodes, the duration and the file paths. This is the file the future live player will read.
 
 A new run on the same film only rewrites the clips added or changed in the notes file.
 

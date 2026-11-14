@@ -10,7 +10,7 @@ Pendant le visionnage, on écrit un fichier de notes par film, une ligne par ext
 
 ```markdown
 # The Night Before
-fichier: The Night Before (2015) Bluray-1080p.mkv
+file: The Night Before (2015) Bluray-1080p.mkv
 
 2:35 d'une fabuleuse soirée incroyable 2:51
 27:15 ce bébé c'est une connerie 27:37
@@ -23,14 +23,14 @@ Ensuite, `podcleaner-clips run notes.md` :
 - retrouve chaque réplique dans les sous-titres français quand le film en a, puis dans le doublage avec Whisper (seulement autour de chaque extrait, jamais le film entier) ;
 - cale le début et la fin sur des limites de phrase à 15 s au plus de vos timecodes, sans couper un mot, avec tous les fragments notés à l'intérieur ;
 - ajoute des fondus de 0,7 s et votre son de transition avant et après l'extrait, puis normalise à -16 LUFS / -1 dBTP ;
-- écrit un WAV 48 kHz, un MP4 H.264 (écran noir pendant la transition) et un index `extraits.json` des coupes retenues ;
+- écrit un WAV 48 kHz, un MP4 H.264 (écran noir pendant la transition) et un index `clips.json` des coupes retenues ;
 - aux passages suivants, ne refait que les extraits ajoutés ou modifiés, et renomme les fichiers des extraits déplacés.
 
 ```
 The Night Before (2015)/
   audio/NB-08-ce-bebe-c-est-une-connerie.wav
   video/NB-08-ce-bebe-c-est-une-connerie.mp4
-  extraits.json
+  clips.json
 ```
 
 ## Installation
@@ -61,17 +61,19 @@ uv run podcleaner-clips config init
 Il est créé dans `~/Library/Application Support/podcleaner-clips/config.toml` sur macOS et dans `%LOCALAPPDATA%\podcleaner-clips\config.toml` sur Windows (`--config` ou la variable `PODCLEANER_CLIPS_CONFIG` permettent d'en utiliser un autre). Retirez le `#` devant au moins les deux lignes ci-dessous. Sur Windows, écrivez les chemins avec des `/` (`"C:/Podcast/Episodes"`) ou entre apostrophes droites (`'C:\Podcast\Episodes'`) : un `\` entre guillemets est une séquence d'échappement en TOML.
 
 ```toml
-dossier_episodes = "~/Podcast/Episodes"           # où ranger les extraits, un dossier par film
-son_transition = "~/Podcast/sons/transition.wav"  # joué avant et après chaque extrait
+episodes_dir = "~/Podcast/Episodes"                # où ranger les extraits, un dossier par film
+transition_sound = "~/Podcast/sons/transition.wav"  # joué avant et après chaque extrait
 ```
 
-Facultatif : `dossier_films` (où chercher un film nommé dans les notes), `doublage_prefere = "VFQ"`, et les sections `[ajustement]`, `[son]` et `[claude]`, toutes commentées dans le fichier. Vérifiez ce qui est lu avec `uv run podcleaner-clips config show`.
+Facultatif : `films_dir` (où chercher un film nommé dans les notes), `preferred_dub = "VFQ"`, et les sections `[adjust]`, `[audio]` et `[claude]`, toutes commentées dans le fichier. Vérifiez ce qui est lu avec `uv run podcleaner-clips config show`.
+
+Les fichiers écrits pour la version 0.1.0, avec les noms en français (`dossier_episodes`, `fichier:`, `abreviation:`, `extraits.json`…), sont encore lus : l'outil liste les noms à changer et remplace `extraits.json` par `clips.json` au passage suivant, sans refaire les extraits.
 
 ## Le fichier de notes
 
 - Une ligne par extrait : `début référence fin`. Timecodes en `HH:MM:SS` ou `MM:SS` (`45:12` = 45 min 12 s) ; `6;25` et `25 min 30` sont compris aussi.
 - Les timecodes peuvent être décalés d'une dizaine de secondes et la référence ne compter que quelques mots, même mal orthographiés. Séparez plusieurs fragments d'une longue scène par `…`, `...` ou ` - `.
-- Lignes d'en-tête, avant le premier extrait : `# Titre`, `fichier: <film>` (chemin absolu, ou relatif au fichier de notes ou à `dossier_films`), `abreviation: NB` (écrite par l'outil si elle manque).
+- Lignes d'en-tête, avant le premier extrait : `# Titre`, `file: <film>` (chemin absolu, ou relatif au fichier de notes ou à `films_dir`), `abbreviation: NB` (écrite par l'outil si elle manque).
 - Toute autre ligne est ignorée : on peut garder d'autres notes dans le même fichier. L'ancienne forme `- 00:12:34 > 00:12:51 | réplique` est acceptée.
 
 ## Lancer
@@ -83,7 +85,7 @@ uv run podcleaner-clips run notes.md
 | Option | Effet |
 | --- | --- |
 | `--dry-run` | Trouve les coupes et les affiche, sans rien écrire |
-| `--film CHEMIN` | Utilise ce film au lieu de `fichier:` |
+| `--film CHEMIN` | Utilise ce film au lieu de `file:` |
 | `--no-transition` | Fondus seuls, sans son de transition ni écran noir |
 | `--audio-only` / `--video-only` | Seulement les WAV / seulement les MP4 |
 | `--no-adjust` | Coupe exactement aux timecodes notés (sans sous-titres, Whisper ni Claude) |
@@ -94,7 +96,7 @@ Le résumé affiche, pour chaque extrait, les timecodes notés et retenus, la du
 
 ## Claude, facultatif
 
-Aucun compte n'est nécessaire. Si `ANTHROPIC_API_KEY` est définie, Claude propose l'abréviation du film et choisit les bornes de chaque extrait à partir de la transcription ; ses réponses sont contrôlées (à 15 s au plus de vos timecodes, tous les fragments inclus) et gardées dans `extraits.json`. Sans clé, ou si Claude est injoignable, l'abréviation reprend les initiales du titre et la coupe se fait sur la limite de phrase la plus proche de chaque timecode noté. Pour le désactiver : `actif = false` dans `[claude]`.
+Aucun compte n'est nécessaire. Si `ANTHROPIC_API_KEY` est définie, Claude propose l'abréviation du film et choisit les bornes de chaque extrait à partir de la transcription ; ses réponses sont contrôlées (à 15 s au plus de vos timecodes, tous les fragments inclus) et gardées dans `clips.json`. Sans clé, ou si Claude est injoignable, l'abréviation reprend les initiales du titre et la coupe se fait sur la limite de phrase la plus proche de chaque timecode noté. Pour le désactiver : `enabled = false` dans `[claude]`.
 
 ## Contribuer
 

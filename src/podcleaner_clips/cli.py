@@ -43,7 +43,7 @@ def config_init(config_path: ConfigOption = None) -> None:
     path = config.resolve_config_path(config_path)
     config.write_template(path)
     typer.echo(f"Configuration file created: {path}")
-    typer.echo("Open it and set at least dossier_episodes and son_transition.")
+    typer.echo("Open it and set at least episodes_dir and transition_sound.")
 
 
 @config_app.command("show")
@@ -54,13 +54,15 @@ def config_show(config_path: ConfigOption = None) -> None:
     typer.echo(f"File: {path}")
     for key, value in config.describe(settings):
         typer.echo(f"{key} = {value}")
+    for notice in settings.notices:
+        typer.echo(f"⚠ {notice}", err=True)
 
 
 @app.command("run")
 def run_command(
     notes: Annotated[Path, typer.Argument(help="Notes file of the film (one clip per line).")],
     film: Annotated[
-        Path | None, typer.Option("--film", help="The film (else `fichier:` in the notes).")
+        Path | None, typer.Option("--film", help="The film (else `file:` in the notes).")
     ] = None,
     no_transition: Annotated[
         bool, typer.Option("--no-transition", help="No transition sound, no black screen.")

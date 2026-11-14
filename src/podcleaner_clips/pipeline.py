@@ -16,6 +16,7 @@ from podcleaner_clips.errors import ClipsError
 from podcleaner_clips.index import (
     CHANGED,
     INDEX_NAME,
+    LEGACY_INDEX_NAME,
     MISSING,
     NEW,
     OUTPUT_KINDS,
@@ -105,7 +106,7 @@ def _resolve_film(opts: RunOptions, notes: Notes, s: Settings) -> Path:
         return film
     if not notes.film_file:
         raise ClipsError(
-            f"No film for {opts.notes}: add a line `fichier: <path of the film>` at the top "
+            f"No film for {opts.notes}: add a line `file: <path of the film>` at the top "
             "of the notes, or use --film."
         )
     given = Path(notes.film_file).expanduser()
@@ -121,7 +122,7 @@ def _resolve_film(opts: RunOptions, notes: Notes, s: Settings) -> Path:
     searched = "\n".join(f"  {p}" for p in dict.fromkeys(places))
     if s.films_dir is not None:
         searched += f"\n  {s.films_dir / '*' / given.name}"
-    raise ClipsError(f"Film not found. Searched:\n{searched}\nFix `fichier:` or use --film.")
+    raise ClipsError(f"Film not found. Searched:\n{searched}\nFix `file:` or use --film.")
 
 
 def _transition(opts: RunOptions, s: Settings) -> tuple[Path | None, float | None, str | None]:
@@ -130,14 +131,14 @@ def _transition(opts: RunOptions, s: Settings) -> tuple[Path | None, float | Non
     path = s.transition_sound
     if path is None:
         raise ClipsError(
-            "No transition sound: set son_transition in the configuration file, "
+            "No transition sound: set transition_sound in the configuration file, "
             "or use --no-transition."
         )
     if not path.is_file():
-        raise ClipsError(f"Transition sound not found: {path} (son_transition).")
+        raise ClipsError(f"Transition sound not found: {path} (transition_sound).")
     duration = probe(path).duration
     if duration <= 0:
-        raise ClipsError(f"The transition sound is empty: {path} (son_transition).")
+        raise ClipsError(f"The transition sound is empty: {path} (transition_sound).")
     return path, duration, file_sha256(path)
 
 
@@ -280,6 +281,8 @@ def run(
 
     out_dir = s.episodes_dir / film_folder_name(title)
     previous = load_index(out_dir / INDEX_NAME)
+    if previous is None:
+        previous = load_index(out_dir / LEGACY_INDEX_NAME)
     wanted = {k for k, on in (("audio", opts.audio), ("video", opts.video)) if on}
     render_cfg = _render_settings(s, film)
     fingerprints = {
@@ -379,10 +382,14 @@ def run(
             ],
         )
         save_index(index, out_dir / INDEX_NAME)
+        (out_dir / LEGACY_INDEX_NAME).unlink(missing_ok=True)
 
     written = {out_dir / _rel(k, j.name) for j in jobs for k in j.render | j.keep}
     orphans = [p for p in dict.fromkeys(orphans) if p not in written and p.is_file()]
-    failures = _summary(jobs, layouts, notes, orphans, track_warning, claude, out_dir, opts, echo)
+    notices = [*s.notices, *notes.notices]
+    failures = _summary(
+        jobs, layouts, notes, orphans, track_warning, notices, claude, out_dir, opts, echo
+    )
     return RunReport(index, failures, out_dir)
 
 
@@ -392,6 +399,7 @@ def _summary(
     notes: Notes,
     orphans: list[Path],
     track_warning: str | None,
+    notices: list[str],
     claude: ClaudeClient,
     out_dir: Path,
     opts: RunOptions,
@@ -414,7 +422,7 @@ def _summary(
         )
         if job.cut.doubt:
             echo(f"    ⚠ {job.cut.doubt}")
-    warnings = [*notes.errors]
+    warnings = [*notes.errors, *notices]
     if track_warning:
         warnings.append(track_warning)
     warnings += claude.warnings

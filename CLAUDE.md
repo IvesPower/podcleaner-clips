@@ -29,7 +29,7 @@ Skills du projet : `test-rapide` (test de bout en bout sur un film généré, av
 - Titre de PR : même format que le titre de commit (`type: English / français`).
 - Description de PR : **tout en anglais d'abord, puis tout en français**, séparés par `---`. Chaque version commence par son `## TL;DR` : 1 à 3 phrases simples qui disent ce que change la PR et pourquoi, compréhensibles sans lire le code. Suivre `.github/pull_request_template.md`.
 - Documentation en anglais (`*.md`) et en français (`*.fr.md`) : toute modification de l'une met l'autre à jour dans la même PR. Ce fichier-ci est en français uniquement.
-- Code et sorties en anglais : identifiants, commentaires, docstrings, messages affichés, erreurs, aide de la CLI. Restent en français : les clés du fichier de configuration et de l'index.
+- Code et sorties en anglais : identifiants, commentaires, docstrings, messages affichés, erreurs, aide de la CLI, clés du fichier de configuration, de l'en-tête des notes et de l'index. Les noms français de la version 0.1.0 (`dossier_episodes`, `fichier:`, `extraits.json`…) restent lus, avec un avis.
 
 ## Décisions du cahier des charges
 
@@ -47,7 +47,7 @@ Skills du projet : `test-rapide` (test de bout en bout sur un film généré, av
 | Fondus | 0,7 s à l'ouverture et à la fermeture |
 | Son de transition | Commence juste avant l'extrait ; le fondu d'ouverture se fait pendant sa fin ; même chose à l'envers en fin d'extrait |
 | Transition vidéo | Écran noir pendant le son de transition |
-| Sorties | `{dossier_episodes}/{nom-film}/audio/` (WAV 48 kHz, -16 LUFS, -1 dBTP), `…/video/` (MP4 H.264 + AAC), `…/extraits.json` |
+| Sorties | `{episodes_dir}/{nom-film}/audio/` (WAV 48 kHz, -16 LUFS, -1 dBTP), `…/video/` (MP4 H.264 + AAC), `…/clips.json` |
 | Relance | Ne réécrit que les extraits ajoutés ou modifiés |
 | Chemins | Fichier de configuration par personne, aucun chemin en dur |
 | Hors périmètre v1 | Lecteur en direct, effets de transition vidéo, sous-titres |
@@ -58,7 +58,7 @@ Skills du projet : `test-rapide` (test de bout en bout sur un film généré, av
 | --- | --- |
 | Paquet / commande | `podcleaner_clips` / `podcleaner-clips` (`run`, `config init`, `config show`, `version`) |
 | Configuration | TOML dans `platformdirs.user_config_dir("podcleaner-clips")/config.toml`, remplaçable par `--config` ou `PODCLEANER_CLIPS_CONFIG` |
-| Titre et dossier du film | Titre : `# ` des notes, sinon nom du fichier du film jusqu'à l'année (`The Night Before (2015)`) ; dossier : titre sans accents ni `<>:"/\|?*`, ≤ 60 caractères. Film : `--film` ou `fichier:` |
+| Titre et dossier du film | Titre : `# ` des notes, sinon nom du fichier du film jusqu'à l'année (`The Night Before (2015)`) ; dossier : titre sans accents ni `<>:"/\|?*`, ≤ 60 caractères. Film : `--film` ou `file:` |
 | Slug | Minuscules, sans accents, mots entiers jusqu'à 40 caractères ; vide → `extrait` |
 | Abréviation de repli | Sans l'article initial, initiales en majuscules, 2 à 6 caractères |
 | Image pendant la transition | Noire tant que le son du film n'a pas commencé, pour rester synchrone |

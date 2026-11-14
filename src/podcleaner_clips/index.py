@@ -1,4 +1,4 @@
-"""The film's extraits.json index: chosen cuts, Claude's opinions, and what a rerun must redo."""
+"""The film's clips.json index: chosen cuts, Claude's opinions, and what a rerun must redo."""
 
 import hashlib
 import json
@@ -14,12 +14,40 @@ from podcleaner_clips.media import AudioTrack
 from podcleaner_clips.naming import format_tc, parse_tc
 from podcleaner_clips.notes import ClipNote
 
-INDEX_NAME = "extraits.json"
-INDEX_VERSION = 1
+INDEX_NAME = "clips.json"
+INDEX_VERSION = 2
+# Version 1 (0.1.0): same content, French name and keys. Still read; replaced on the next save.
+LEGACY_INDEX_NAME = "extraits.json"
+_LEGACY_VERSION = 1
+_LEGACY_KEYS = {
+    "titre": "title",
+    "abreviation": "abbreviation",
+    "fichier": "file",
+    "piste_audio": "audio_track",
+    "langue": "language",
+    "canaux": "channels",
+    "avis_claude": "claude_advice",
+    "reponse": "answer",
+    "raison": "reason",
+    "modele": "model",
+    "extraits": "clips",
+    "numero": "number",
+    "fragments_trouves": "found_fragments",
+    "empreinte": "fingerprint",
+    "notes": "noted",
+    "retenu": "chosen",
+    "debut": "start",
+    "fin": "end",
+    "methode": "method",
+    "doute": "doubt",
+    "duree_s": "duration_s",
+    "fichiers": "files",
+}
+_LEGACY_ADVICE_TYPES = {"abreviation": "abbreviation", "bornes": "bounds"}
 OUTPUT_KINDS = ("audio", "video")
 
-# Action kinds, shown as is in the summary.
-NEW, CHANGED, UNCHANGED, RENAMED, MISSING = "nouveau", "modifie", "inchange", "renomme", "manquant"
+# Action kinds (the summary shows them with its own labels).
+NEW, CHANGED, UNCHANGED, RENAMED, MISSING = "new", "changed", "unchanged", "renamed", "missing"
 
 
 def fingerprint(
@@ -156,52 +184,52 @@ def plan_actions(
     return actions, orphans
 
 
-# JSON (French keys, see the spec) ↔ dataclasses.
+# JSON ↔ dataclasses.
 
 
 def _advice_to_json(a: ClaudeAdvice) -> dict[str, Any]:
-    return {"type": a.kind, "reponse": a.answer, "raison": a.reason, "modele": a.model}
+    return {"type": a.kind, "answer": a.answer, "reason": a.reason, "model": a.model}
 
 
 def _advice_from_json(d: dict[str, Any]) -> ClaudeAdvice:
-    return ClaudeAdvice(d["type"], d["reponse"], d["raison"], d["modele"])
+    return ClaudeAdvice(d["type"], d["answer"], d["reason"], d["model"])
 
 
 def _clip_to_json(c: ClipEntry) -> dict[str, Any]:
     return {
-        "numero": c.number,
+        "number": c.number,
         "reference": c.reference,
-        "fragments_trouves": c.found_fragments,
-        "empreinte": c.fingerprint,
-        "notes": {"debut": format_tc(c.noted_start), "fin": format_tc(c.noted_end)},
-        "retenu": {
-            "debut": format_tc(c.cut.start),
-            "fin": format_tc(c.cut.end),
-            "methode": c.cut.method,
+        "found_fragments": c.found_fragments,
+        "fingerprint": c.fingerprint,
+        "noted": {"start": format_tc(c.noted_start), "end": format_tc(c.noted_end)},
+        "chosen": {
+            "start": format_tc(c.cut.start),
+            "end": format_tc(c.cut.end),
+            "method": c.cut.method,
             "score": c.cut.score,
-            "doute": c.cut.doubt,
+            "doubt": c.cut.doubt,
         },
-        "avis_claude": _advice_to_json(c.claude_advice) if c.claude_advice else None,
-        "duree_s": round(c.duration_s, 3),
-        "fichiers": {k: v.replace("\\", "/") for k, v in c.files.items()},  # same on Windows
+        "claude_advice": _advice_to_json(c.claude_advice) if c.claude_advice else None,
+        "duration_s": round(c.duration_s, 3),
+        "files": {k: v.replace("\\", "/") for k, v in c.files.items()},  # same on Windows
     }
 
 
 def _clip_from_json(d: dict[str, Any]) -> ClipEntry:
-    cut = d["retenu"]
+    cut = d["chosen"]
     return ClipEntry(
-        number=int(d["numero"]),
+        number=int(d["number"]),
         reference=d["reference"],
-        found_fragments=list(d["fragments_trouves"]),
-        fingerprint=d["empreinte"],
-        noted_start=parse_tc(d["notes"]["debut"]),
-        noted_end=parse_tc(d["notes"]["fin"]),
+        found_fragments=list(d["found_fragments"]),
+        fingerprint=d["fingerprint"],
+        noted_start=parse_tc(d["noted"]["start"]),
+        noted_end=parse_tc(d["noted"]["end"]),
         cut=Cut(
-            parse_tc(cut["debut"]), parse_tc(cut["fin"]), cut["methode"], cut["score"], cut["doute"]
+            parse_tc(cut["start"]), parse_tc(cut["end"]), cut["method"], cut["score"], cut["doubt"]
         ),
-        claude_advice=_advice_from_json(d["avis_claude"]) if d["avis_claude"] else None,
-        duration_s=float(d["duree_s"]),
-        files=dict(d["fichiers"]),
+        claude_advice=_advice_from_json(d["claude_advice"]) if d["claude_advice"] else None,
+        duration_s=float(d["duration_s"]),
+        files=dict(d["files"]),
     )
 
 
@@ -210,40 +238,54 @@ def _to_json(index: FilmIndex) -> dict[str, Any]:
     return {
         "version": INDEX_VERSION,
         "film": {
-            "titre": index.title,
-            "abreviation": index.abbreviation,
-            "fichier": index.film_file,
-            "piste_audio": (
+            "title": index.title,
+            "abbreviation": index.abbreviation,
+            "file": index.film_file,
+            "audio_track": (
                 {
                     "index": track.index,
-                    "langue": track.language,
-                    "titre": track.title,
-                    "canaux": track.channels,
+                    "language": track.language,
+                    "title": track.title,
+                    "channels": track.channels,
                 }
                 if track
                 else None
             ),
         },
-        "avis_claude": [_advice_to_json(a) for a in index.claude_advice],
-        "extraits": [_clip_to_json(c) for c in index.clips],
+        "claude_advice": [_advice_to_json(a) for a in index.claude_advice],
+        "clips": [_clip_to_json(c) for c in index.clips],
     }
 
 
 def _from_json(data: dict[str, Any]) -> FilmIndex:
     film = data["film"]
-    track = film["piste_audio"]
+    track = film["audio_track"]
     return FilmIndex(
-        title=film["titre"],
-        abbreviation=film["abreviation"],
-        film_file=film["fichier"],
+        title=film["title"],
+        abbreviation=film["abbreviation"],
+        film_file=film["file"],
         audio_track=(
-            AudioTrack(int(track["index"]), track["langue"], track["titre"], int(track["canaux"]))
+            AudioTrack(
+                int(track["index"]), track["language"], track["title"], int(track["channels"])
+            )
             if track
             else None
         ),
-        claude_advice=[_advice_from_json(a) for a in data["avis_claude"]],
-        clips=[_clip_from_json(c) for c in data["extraits"]],
+        claude_advice=[_advice_from_json(a) for a in data["claude_advice"]],
+        clips=[_clip_from_json(c) for c in data["clips"]],
     )
+
+
+def _from_legacy(value: Any, key: str | None = None) -> Any:
+    """Version 1 JSON turned into version 2 keys (clip file names under "fichiers" are kept)."""
+    if isinstance(value, list):
+        return [_from_legacy(v) for v in value]
+    if not isinstance(value, dict) or key == "fichiers":
+        return value
+    out = {_LEGACY_KEYS.get(k, k): _from_legacy(v, k) for k, v in value.items()}
+    if "type" in out and "answer" in out:  # a Claude advice
+        out["type"] = _LEGACY_ADVICE_TYPES.get(out["type"], out["type"])
+    return out
 
 
 def load_index(path: Path) -> FilmIndex | None:
@@ -253,7 +295,9 @@ def load_index(path: Path) -> FilmIndex | None:
         return None
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-        if data.get("version") != INDEX_VERSION:
+        if data.get("version") == _LEGACY_VERSION:
+            data = _from_legacy(data)
+        elif data.get("version") != INDEX_VERSION:
             raise ValueError(f"unknown version {data.get('version')!r}")
         return _from_json(data)
     except (ValueError, KeyError, TypeError, AttributeError) as exc:
