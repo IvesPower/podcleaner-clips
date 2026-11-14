@@ -25,7 +25,7 @@ Then `pclips run notes.md`:
 - finds each line in the French subtitles when the film has some, then in the dub with Whisper (only around each clip, never the whole film);
 - moves the start and the end to sentence boundaries within 15 s of your timecodes, never cutting a word, with every noted fragment inside;
 - adds 0.7 s fades and your transition sound before and after the clip, then normalizes to -16 LUFS / -1 dBTP;
-- writes a 48 kHz WAV, an H.264 MP4 (black screen during the transition, the picture fading in from black and out to black with the sound) and a `clips.json` index of the chosen cuts;
+- writes a 48 kHz WAV, an H.264 MP4 (black screen, or your transition video, during the transition, the picture fading in from black and out to black with the sound) and a `clips.json` index of the chosen cuts;
 - on later runs, only redoes the clips you added or changed, and renames the files of clips that moved.
 
 ```
@@ -69,7 +69,7 @@ Each person has their own configuration file. Create it by answering a few quest
 pclips init
 ```
 
-It asks for the folder where clips are stored (required; it offers to create it), the folder where your films are, the transition sound, the preferred dub (VFF or VFQ) and whether to use Claude, saying whether Claude Code or an API key was found. Paths can be pasted or dragged into the terminal. Run `pclips init` again to change your answers: the current values are offered as defaults, and the file is replaced only after you confirm.
+It asks for the folder where clips are stored (required; it offers to create it), the folder where your films are, the transition sound and an optional transition video, the preferred dub (VFF or VFQ) and whether to use Claude, saying whether Claude Code or an API key was found. Paths can be pasted or dragged into the terminal. Run `pclips init` again to change your answers: the current values are offered as defaults, and the file is replaced only after you confirm.
 
 The file is written to `~/Library/Application Support/podcleaner-clips/config.toml` on macOS and `%LOCALAPPDATA%\podcleaner-clips\config.toml` on Windows (`--config` or the `PODCLEANER_CLIPS_CONFIG` variable point elsewhere; `pclips config --path` prints it). The other settings (`[adjust]`, `[audio]`, …) are in the file, commented: remove the `#` to change one. Check what is read with `pclips config`. Without a terminal, or with `pclips init --no-input`, the commented file is written without questions.
 
@@ -92,7 +92,7 @@ pclips run notes.md
 | --- | --- |
 | `--dry-run` | Find the cuts and show them, write nothing |
 | `--film PATH` | Use this film instead of `file:` |
-| `--no-transition` | Fades only, no transition sound and no black screen |
+| `--no-transition` | Fades only, no transition sound, no black screen or transition video |
 | `--audio-only` / `--video-only` | Only the WAV files / only the MP4 files |
 | `--no-adjust` | Cut exactly at the noted timecodes (no subtitles, Whisper or Claude) |
 | `--audio-track N` | Use audio track N (from 0) when tracks are mislabelled |

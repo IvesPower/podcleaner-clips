@@ -27,6 +27,7 @@ def test_new_config_from_answers(tmp_path, tty, transition_wav):
             "y",  # create it
             "",  # no films folder
             str(transition_wav),
+            "",  # no transition video
             "vfq",
             "n",  # no Claude
         ],
@@ -60,7 +61,7 @@ def test_existing_values_are_the_defaults_and_other_settings_kept(tmp_path, tty,
         encoding="utf-8",
     )
 
-    result = init(cfg, ["", "", "", "", "", "", "y"])  # Enter everywhere, then replace
+    result = init(cfg, ["", "", "", "", "", "", "", "y"])  # Enter everywhere, then replace
 
     assert result.exit_code == 0, result.output
     s = load_settings(cfg)
@@ -110,6 +111,8 @@ def test_wrong_answers_are_asked_again(tmp_path, tty, transition_wav):
             str(tmp_path / "absent.wav"),  # no such sound
             str(not_sound),  # not a sound
             str(transition_wav),
+            str(transition_wav),  # a sound, not a video
+            "",
             "VO",  # not a choice
             "VFF",
             "n",
@@ -120,6 +123,7 @@ def test_wrong_answers_are_asked_again(tmp_path, tty, transition_wav):
     assert "No folder at" in result.output
     assert "No file at" in result.output
     assert "ffmpeg could not read" in result.output or "has no sound" in result.output
+    assert "has no picture" in result.output
     assert load_settings(cfg).transition_sound == transition_wav
 
 
@@ -172,3 +176,18 @@ def test_without_a_terminal_writes_the_template(tmp_path, args):
 )
 def test_clean_path(text, windows, expected):
     assert clean_path(text, windows=windows) == expected
+
+
+def test_transition_video_is_asked_after_the_sound(tmp_path, tty, transition_wav, test_film):
+    cfg = tmp_path / "config.toml"
+    result = init(cfg, [str(tmp_path), "", str(transition_wav), str(test_film), "", "n"])
+    assert result.exit_code == 0, result.output
+    assert load_settings(cfg).transition_video == test_film
+
+
+def test_no_transition_video_question_without_a_sound(tmp_path, tty):
+    cfg = tmp_path / "config.toml"
+    result = init(cfg, [str(tmp_path), "", "", "", "n"])
+    assert result.exit_code == 0, result.output
+    assert "Video shown during the transition" not in result.output
+    assert load_settings(cfg).transition_video is None

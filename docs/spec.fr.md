@@ -105,7 +105,7 @@ Une nouvelle exécution sur le même film ne réécrit que les extraits ajoutés
 
 ## Hors périmètre, décisions et questions ouvertes
 
-La première version ne fait pas le lecteur en direct, ni d'effets de transition vidéo autres que le fondu au noir (une vidéo de transition est prévue), ni l'incrustation de sous-titres dans les extraits.
+La première version ne fait pas le lecteur en direct, ni d'effets de transition vidéo autres que le fondu au noir et la vidéo de transition, ni l'incrustation de sous-titres dans les extraits.
 
 | Sujet | Décision |
 | --- | --- |
@@ -121,7 +121,7 @@ La première version ne fait pas le lecteur en direct, ni d'effets de transition
 | Langue | Toujours une piste VF, pour l'audio comme pour la vidéo ; VFF de préférence quand il y a aussi une VFQ (réglable) |
 | Fondus | 0,7 s à l'ouverture et à la fermeture, pour le son et l'image (l'image part du noir et y retourne) |
 | Son de transition | Commence juste avant l'extrait ; le fondu d'ouverture se fait pendant sa fin, et le son du film est à 100 % quand la transition est passée. Même chose à l'envers en fin d'extrait |
-| Transition vidéo | Écran noir pendant le son de transition ; l'image du film apparaît depuis le noir et y retourne, en même temps que le son |
+| Transition vidéo | Écran noir pendant le son de transition, ou la vidéo de transition facultative (`transition_video` : muette, coupée ou bouclée à la bonne durée, mise au cadre du film avec des bandes noires, en fondu vers le noir avant le film et depuis le noir après) ; l'image du film apparaît depuis le noir et y retourne, en même temps que le son. Changer la vidéo de transition ne refait que les vidéos |
 | Formats de sortie | WAV 48 kHz à -16 LUFS pour l'audio, MP4 H.264 pour la vidéo |
 | Chemins | Fichier de configuration par personne, aucun chemin en dur |
 

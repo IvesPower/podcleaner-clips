@@ -105,7 +105,7 @@ A new run on the same film only rewrites the clips added or changed in the notes
 
 ## Out of scope, decisions and open questions
 
-The first version does not include the live player, video transition effects other than the fade to black (a transition video is planned) or burning subtitles into the clips.
+The first version does not include the live player, video transition effects other than the fade to black and the transition video or burning subtitles into the clips.
 
 | Topic | Decision |
 | --- | --- |
@@ -121,7 +121,7 @@ The first version does not include the live player, video transition effects oth
 | Language | Always a VF track, for audio and video alike; VFF preferred when there is also a VFQ (configurable) |
 | Fades | 0.7 s at the start and the end, sound and picture (the picture fades from and to black) |
 | Transition sound | Starts just before the clip; the fade-in happens during its end, and the film sound is at 100% once the transition is over. The same in reverse at the end of the clip |
-| Video transition | Black screen during the transition sound; the film picture fades in from black and out to black, at the same time as the sound |
+| Video transition | Black screen during the transition sound, or the optional transition video (`transition_video`: silent, cut or looped to length, fitted to the film's frame with black bars, fading to black before the film and in from black after it); the film picture fades in from black and out to black, at the same time as the sound. Changing the transition video redoes the videos only |
 | Output formats | 48 kHz WAV at -16 LUFS for audio, H.264 MP4 for video |
 | Paths | One configuration file per person, no hard-coded path |
 

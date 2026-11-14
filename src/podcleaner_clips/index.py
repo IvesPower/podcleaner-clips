@@ -97,6 +97,7 @@ class ClipEntry:
     duration_s: float
     files: dict[str, str] = field(default_factory=dict)
     video_version: int = 1  # how the video file was drawn (render_video.VIDEO_RENDER_VERSION)
+    transition_video_sha: str | None = None  # the transition video drawn in it, if any
 
 
 @dataclass
@@ -221,6 +222,7 @@ def _clip_to_json(c: ClipEntry) -> dict[str, Any]:
         "duration_s": round(c.duration_s, 3),
         "files": {k: v.replace("\\", "/") for k, v in c.files.items()},  # same on Windows
         "video_version": c.video_version,
+        "transition_video_sha": c.transition_video_sha,
     }
 
 
@@ -240,6 +242,7 @@ def _clip_from_json(d: dict[str, Any]) -> ClipEntry:
         duration_s=float(d["duration_s"]),
         files=dict(d["files"]),
         video_version=int(d.get("video_version", 1)),  # missing: drawn before the fades
+        transition_video_sha=d.get("transition_video_sha"),
     )
 
 

@@ -143,6 +143,18 @@ def _transition(opts: RunOptions, s: Settings) -> tuple[Path | None, float | Non
     return path, duration, file_sha256(path)
 
 
+def _transition_video(opts: RunOptions, s: Settings) -> tuple[Path | None, str | None]:
+    """The transition video and its SHA-256, when the clips have a transition and a video."""
+    path = s.transition_video
+    if path is None or not opts.transition or not opts.video:
+        return None, None
+    if not path.is_file():
+        raise ClipsError(f"Transition video not found: {path} (transition_video).")
+    if probe(path).video is None:
+        raise ClipsError(f"The transition video has no picture: {path} (transition_video).")
+    return path, file_sha256(path)
+
+
 def _render_settings(s: Settings, film: Path) -> dict:
     """Settings that change the clips' files (part of each clip's fingerprint)."""
     return {
@@ -220,6 +232,7 @@ def _render(
     track: AudioTrack,
     layout: ClipLayout,
     transition: Path | None,
+    transition_video: Path | None,
     out_dir: Path,
     s: Settings,
 ) -> None:
@@ -233,12 +246,12 @@ def _render(
     video_path = out_dir / _rel("video", job.name)
     video_path.parent.mkdir(parents=True, exist_ok=True)
     if "audio" in job.render or "audio" in job.keep:
-        render_video(film, info.video, layout, audio_path, video_path)
+        render_video(film, info.video, layout, audio_path, video_path, transition_video)
         return
     with tempfile.TemporaryDirectory() as tmp:  # --video-only: the sound is not kept
         wav = Path(tmp) / "clip.wav"
         render_audio(film, track, layout, transition, wav, s)
-        render_video(film, info.video, layout, wav, video_path)
+        render_video(film, info.video, layout, wav, video_path, transition_video)
 
 
 def run(
@@ -266,6 +279,7 @@ def run(
         raise ClipsError(f"{film.name} has no picture: use --audio-only.")
     track, track_warning = choose_audio_track(info.audio, opts.audio_track, s.preferred_dub)
     transition, transition_s, transition_sha = _transition(opts, s)
+    transition_video, transition_video_sha = _transition_video(opts, s)
     claude = claude if claude is not None else ClaudeClient(s)
 
     echo(f"Film: {film}")
@@ -332,7 +346,10 @@ def run(
         for kind in OUTPUT_KINDS:
             target = out_dir / _rel(kind, job.name)
             source = out_dir / entry.files[kind] if kind in entry.files else None
-            outdated = kind == "video" and entry.video_version != VIDEO_RENDER_VERSION
+            outdated = kind == "video" and (
+                entry.video_version != VIDEO_RENDER_VERSION
+                or entry.transition_video_sha != transition_video_sha
+            )
             if outdated and kind in wanted:
                 job.render.add(kind)  # same cut, the picture is drawn differently now
                 if source is not None and source.is_file() and source != target:
@@ -357,7 +374,17 @@ def run(
         for position, job in enumerate(to_render, 1):
             echo(f"[{position}/{len(to_render)}] {job.name}: rendering")
             try:
-                _render(job, film, info, track, layouts[job.note.number], transition, out_dir, s)
+                _render(
+                    job,
+                    film,
+                    info,
+                    track,
+                    layouts[job.note.number],
+                    transition,
+                    transition_video,
+                    out_dir,
+                    s,
+                )
             except ClipsError as exc:
                 job.error = str(exc)
         if abbr_advice is not None:
@@ -388,6 +415,11 @@ def run(
                         j.action.reuse.video_version
                         if j.action.reuse is not None and "video" in j.keep
                         else VIDEO_RENDER_VERSION
+                    ),
+                    transition_video_sha=(
+                        j.action.reuse.transition_video_sha
+                        if j.action.reuse is not None and "video" in j.keep
+                        else transition_video_sha
                     ),
                 )
                 for j in jobs

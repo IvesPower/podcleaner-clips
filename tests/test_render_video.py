@@ -136,3 +136,44 @@ def test_video_filter_fades(layout, fades):
     assert [step for step in steps if step.startswith("fade=")] == fades
     if fades and layout.transition_s:  # on the film picture, before the black is added
         assert steps.index(fades[-1]) < next(i for i, x in enumerate(steps) if x.startswith("tpad"))
+
+
+def colour(path: Path, t: float, x: int, y: int) -> tuple[int, int, int]:
+    """RGB of the pixel (x, y) of the frame shown at `t` seconds."""
+    out = subprocess.run(
+        ["ffmpeg", "-v", "error", "-ss", str(t), "-i", path, "-frames:v", "1",
+         "-vf", f"format=rgb24,crop=1:1:{x}:{y}", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+        check=True,
+        capture_output=True,
+    ).stdout  # fmt: skip
+    return tuple(out[:3])
+
+
+def test_transition_video_replaces_the_black(test_film, transition_mp4, tmp_path):
+    layout = ClipLayout(2.0, 8.0, 0.7, 2.5)  # film picture from 1.8 s to 7.8 s, total 9.6 s
+    wav, mp4 = tmp_path / "clip.wav", tmp_path / "clip.mp4"
+    transition = tmp_path / "t.wav"
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=330:duration=2.5",
+         "-ac", "2", str(transition)],
+        check=True,
+    )  # fmt: skip
+    render_audio(test_film, VFF, layout, transition, wav, S)
+    video = probe(test_film).video
+    assert video is not None
+    render_video(test_film, video, layout, wav, mp4, transition_mp4)
+
+    width, height = display_size(video)
+    middle = (width // 2, height // 2)
+    r, g, b = colour(mp4, 0.2, *middle)  # opening: the transition video, looped past 0.6 s
+    assert r > 150 and g < 80 and b < 80
+    assert colour(mp4, 1.0, *middle)[0] > 150  # still red after the first loop
+    assert max(colour(mp4, 0.2, 2, height // 2)) < 40  # bars: the square is fitted, not stretched
+    assert luma(mp4, 1.78) < 30  # faded to black just before the film
+    assert luma(mp4, 3.5) > 40  # the film
+    assert colour(mp4, 9.4, *middle)[0] > 150  # closing: the transition video again
+
+    info = streams(mp4)
+    assert float(info["video"]["duration"]) == pytest.approx(9.6, abs=0.1)
+    assert float(info["audio"]["duration"]) == pytest.approx(9.6, abs=0.1)
+    assert info["audio"]["codec_name"] == "aac"  # one sound only: the clip's
