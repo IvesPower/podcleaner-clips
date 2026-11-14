@@ -10,6 +10,7 @@ import pytest
 
 from podcleaner_clips.adjust import Word, adjust_cut
 from podcleaner_clips.claude import ClaudeAdvice, ClaudeClient, _run
+from podcleaner_clips.claude import find_cli as real_find_cli  # before conftest hides it
 from podcleaner_clips.config import Settings
 
 S = Settings(episodes_dir=Path("episodes"))
@@ -316,3 +317,20 @@ def test_cli_runs_without_the_api_key(monkeypatch, tmp_path):
         [sys.executable, "-c", "import os; print(os.environ.get('ANTHROPIC_API_KEY'))"], "", 30
     )
     assert done.stdout.strip() == "None"
+
+
+def test_find_cli_looks_where_the_installer_puts_it(monkeypatch, tmp_path):
+    folder = tmp_path / ".local" / "bin"
+    folder.mkdir(parents=True)
+    exe = folder / ("claude.exe" if sys.platform == "win32" else "claude")
+    exe.write_text("", encoding="utf-8")
+    exe.chmod(0o755)
+    monkeypatch.setenv("PATH", str(tmp_path / "empty"))  # not in PATH
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    assert Path(real_find_cli()) == exe
+
+
+def test_find_cli_none_when_not_installed(monkeypatch, tmp_path):
+    monkeypatch.setenv("PATH", str(tmp_path / "empty"))
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    assert real_find_cli() is None
