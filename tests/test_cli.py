@@ -123,4 +123,5 @@ def test_usage_shows_pclips_when_typed():
     proc = subprocess.run(
         [sys.executable, "-c", script], capture_output=True, text=True, encoding="utf-8"
     )
-    assert "Usage: pclips" in proc.stdout
+    plain = re.sub(r"\x1b\[[0-9;]*m", "", proc.stdout)  # Rich may colour it (CI on macOS)
+    assert "Usage: pclips" in plain
