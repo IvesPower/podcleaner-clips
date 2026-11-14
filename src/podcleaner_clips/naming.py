@@ -91,7 +91,7 @@ def fallback_abbreviation(title: str) -> str:
 def title_from_film(file_name: str) -> str:
     """Film title from its file name: up to the year in parentheses, else the name alone.
 
-    "The Night Before (2015) Bluray-1080p.mkv" → "The Night Before (2015)".
+    "Avengers (2012) Bluray-1080p.mkv" → "Avengers (2012)".
     """
     stem = file_name.rsplit(".", 1)[0] if "." in file_name else file_name
     year = _YEAR.search(stem)

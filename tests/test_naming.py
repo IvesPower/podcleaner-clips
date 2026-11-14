@@ -108,12 +108,12 @@ def test_fallback_abbreviation():
 
 
 def test_fallback_abbreviation_ignores_the_year():
-    assert fallback_abbreviation("The Night Before (2015)") == "NB"
+    assert fallback_abbreviation("Avengers (2012)") == "AV"
     assert fallback_abbreviation("1917") == "19"  # a year-like title stays
 
 
 def test_title_from_film_keeps_up_to_the_year():
-    assert title_from_film("The Night Before (2015) Bluray-1080p.mkv") == "The Night Before (2015)"
+    assert title_from_film("Avengers (2012) Bluray-1080p.mkv") == "Avengers (2012)"
     assert title_from_film("Le Dîner de cons.avi") == "Le Dîner de cons"
     assert title_from_film("Alien (1979).mp4") == "Alien (1979)"
 

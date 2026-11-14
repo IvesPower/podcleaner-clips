@@ -150,7 +150,7 @@ def test_probe_six_channel_vf(tmp_path):
 SRT = """\
 1
 00:00:01,000 --> 00:00:03,000
-Ce bébé, c'est une connerie.
+Je t'attends, tête de bouclier.
 
 2
 00:00:04,000 --> 00:00:06,000
@@ -164,7 +164,7 @@ def test_extract_subtitles_roundtrip(tmp_path):
     track = choose_subtitle_track(info.subtitles)
     assert track is not None and track.language == "fre"
     text = extract_subtitles(film, track)
-    assert "Ce bébé, c'est une connerie." in text
+    assert "Je t'attends, tête de bouclier." in text
     # Times are on the film clock that starts at 0 (the AAC priming offset of a few
     # ms is removed), the same clock decode_window seeks on.
     starts = [line.split(" --> ")[0] for line in text.splitlines() if " --> " in line]

@@ -9,13 +9,15 @@ A command-line tool that cuts the movie clips you noted while watching a film, a
 While watching, you write one notes file per film, one line per clip: the start timecode, a few words of the line, the end timecode.
 
 ```markdown
-# The Night Before
-file: The Night Before (2015) Bluray-1080p.mkv
+# Avengers
+file: Avengers (2012) Bluray-1080p.mkv
 
-2:35 d'une fabuleuse soirée incroyable 2:51
-27:15 ce bébé c'est une connerie 27:37
-43:00 si je veux la sucer … Isaac va sucer 44:08
+5:20 monsieur, veuillez poser votre lance 5:30
+7:00 la fourmi n'est pas en conflit avec la botte 7:10
+21:45 on m'a dit qu'on avait gagné la guerre … on ne m'a pas dit ce qu'on avait perdu 21:58
 ```
+
+The full notes file of this example is in [`examples/avengers.md`](examples/avengers.md).
 
 Then `podcleaner-clips run notes.md`:
 
@@ -23,13 +25,13 @@ Then `podcleaner-clips run notes.md`:
 - finds each line in the French subtitles when the film has some, then in the dub with Whisper (only around each clip, never the whole film);
 - moves the start and the end to sentence boundaries within 15 s of your timecodes, never cutting a word, with every noted fragment inside;
 - adds 0.7 s fades and your transition sound before and after the clip, then normalizes to -16 LUFS / -1 dBTP;
-- writes a 48 kHz WAV, an H.264 MP4 (black screen during the transition) and an `clips.json` index of the chosen cuts;
+- writes a 48 kHz WAV, an H.264 MP4 (black screen during the transition) and a `clips.json` index of the chosen cuts;
 - on later runs, only redoes the clips you added or changed, and renames the files of clips that moved.
 
 ```
-The Night Before (2015)/
-  audio/NB-08-ce-bebe-c-est-une-connerie.wav
-  video/NB-08-ce-bebe-c-est-une-connerie.mp4
+Avengers/
+  audio/AV-03-on-m-a-dit-qu-on-avait-gagne-la-guerre.wav
+  video/AV-03-on-m-a-dit-qu-on-avait-gagne-la-guerre.mp4
   clips.json
 ```
 
@@ -73,7 +75,7 @@ Files written for version 0.1.0, with French names (`dossier_episodes`, `fichier
 
 - One line per clip: `start reference end`. Timecodes as `HH:MM:SS` or `MM:SS` (`45:12` is 45 min 12 s); `6;25` and `25 min 30` are understood too.
 - Timecodes can be about 10 s off and the reference only a few words, even misspelled. Separate several fragments of a long scene with `…`, `...` or ` - `.
-- Header lines, before the first clip: `# Title`, `file: <film>` (absolute path, or relative to the notes file or to `films_dir`), `abbreviation: NB` (written by the tool if missing).
+- Header lines, before the first clip: `# Title`, `file: <film>` (absolute path, or relative to the notes file or to `films_dir`), `abbreviation: AV` (written by the tool if missing).
 - Any other line is ignored, so you can keep other notes in the same file. The older form `- 00:12:34 > 00:12:51 | line` is accepted.
 
 ## Run

@@ -9,13 +9,15 @@ Un outil en ligne de commande qui découpe dans un film les extraits notés pend
 Pendant le visionnage, on écrit un fichier de notes par film, une ligne par extrait : le timecode de début, quelques mots de la réplique, le timecode de fin.
 
 ```markdown
-# The Night Before
-file: The Night Before (2015) Bluray-1080p.mkv
+# Avengers
+file: Avengers (2012) Bluray-1080p.mkv
 
-2:35 d'une fabuleuse soirée incroyable 2:51
-27:15 ce bébé c'est une connerie 27:37
-43:00 si je veux la sucer … Isaac va sucer 44:08
+5:20 monsieur, veuillez poser votre lance 5:30
+7:00 la fourmi n'est pas en conflit avec la botte 7:10
+21:45 on m'a dit qu'on avait gagné la guerre … on ne m'a pas dit ce qu'on avait perdu 21:58
 ```
+
+Le fichier de notes complet de cet exemple est dans [`examples/avengers.md`](examples/avengers.md).
 
 Ensuite, `podcleaner-clips run notes.md` :
 
@@ -27,9 +29,9 @@ Ensuite, `podcleaner-clips run notes.md` :
 - aux passages suivants, ne refait que les extraits ajoutés ou modifiés, et renomme les fichiers des extraits déplacés.
 
 ```
-The Night Before (2015)/
-  audio/NB-08-ce-bebe-c-est-une-connerie.wav
-  video/NB-08-ce-bebe-c-est-une-connerie.mp4
+Avengers/
+  audio/AV-03-on-m-a-dit-qu-on-avait-gagne-la-guerre.wav
+  video/AV-03-on-m-a-dit-qu-on-avait-gagne-la-guerre.mp4
   clips.json
 ```
 
@@ -73,7 +75,7 @@ Les fichiers écrits pour la version 0.1.0, avec les noms en français (`dossier
 
 - Une ligne par extrait : `début référence fin`. Timecodes en `HH:MM:SS` ou `MM:SS` (`45:12` = 45 min 12 s) ; `6;25` et `25 min 30` sont compris aussi.
 - Les timecodes peuvent être décalés d'une dizaine de secondes et la référence ne compter que quelques mots, même mal orthographiés. Séparez plusieurs fragments d'une longue scène par `…`, `...` ou ` - `.
-- Lignes d'en-tête, avant le premier extrait : `# Titre`, `file: <film>` (chemin absolu, ou relatif au fichier de notes ou à `films_dir`), `abbreviation: NB` (écrite par l'outil si elle manque).
+- Lignes d'en-tête, avant le premier extrait : `# Titre`, `file: <film>` (chemin absolu, ou relatif au fichier de notes ou à `films_dir`), `abbreviation: AV` (écrite par l'outil si elle manque).
 - Toute autre ligne est ignorée : on peut garder d'autres notes dans le même fichier. L'ancienne forme `- 00:12:34 > 00:12:51 | réplique` est acceptée.
 
 ## Lancer
