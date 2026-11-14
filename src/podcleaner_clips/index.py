@@ -188,11 +188,18 @@ def plan_actions(
 
 
 def _advice_to_json(a: ClaudeAdvice) -> dict[str, Any]:
-    return {"type": a.kind, "answer": a.answer, "reason": a.reason, "model": a.model}
+    return {
+        "type": a.kind,
+        "answer": a.answer,
+        "reason": a.reason,
+        "model": a.model,
+        "via": a.via,
+    }
 
 
 def _advice_from_json(d: dict[str, Any]) -> ClaudeAdvice:
-    return ClaudeAdvice(d["type"], d["answer"], d["reason"], d["model"])
+    # "via" is missing before the Claude Code CLI could answer: it was the API.
+    return ClaudeAdvice(d["type"], d["answer"], d["reason"], d["model"], d.get("via", "api"))
 
 
 def _clip_to_json(c: ClipEntry) -> dict[str, Any]:

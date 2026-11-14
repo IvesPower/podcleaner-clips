@@ -1,12 +1,18 @@
 """Claude's opinion on the abbreviation and the clip bounds, always with a fallback.
 
-Without an API key, with Claude turned off, on an API error or on an answer that does not
-pass the checks, the result is the one computed without Claude.
+Claude is reached through the Claude Code CLI (a Claude subscription) or the API (an
+ANTHROPIC_API_KEY), as `[claude] backend` says. With neither, with Claude turned off, on an
+error or on an answer that does not pass the checks, the result is the one computed without
+Claude.
 """
 
 import json
 import os
 import re
+import shutil
+import subprocess
+import tempfile
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from typing import Any
 
@@ -60,26 +66,164 @@ class ClaudeAdvice:
     answer: str
     reason: str
     model: str
+    via: str = "api"  # "cli" (Claude Code) or "api"
+
+
+_CLI_TIMEOUT_S = 180
+# Runs a command: (args, stdin text, timeout) → completed process (text output).
+Runner = Callable[[list[str], str, float], subprocess.CompletedProcess]
+
+
+def _run(args: list[str], stdin: str, timeout: float) -> subprocess.CompletedProcess:
+    env = dict(os.environ)
+    env.pop("ANTHROPIC_API_KEY", None)  # the CLI must use the subscription, not the key
+    with tempfile.TemporaryDirectory(prefix="podcleaner-clips-") as cwd:  # no CLAUDE.md
+        return subprocess.run(
+            args,
+            input=stdin,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout,
+            cwd=cwd,
+            env=env,
+            check=False,
+        )
+
+
+def find_cli() -> str | None:
+    """Path of the Claude Code CLI (`claude`, `claude.exe` or `claude.cmd`), if installed."""
+    return shutil.which("claude")
+
+
+def cli_logged_in(cli: str, runner: Runner = _run) -> bool | None:
+    """True or False from `claude auth status`; None if it cannot tell."""
+    try:
+        done = runner([cli, "auth", "status", "--json"], "", 30)
+        return bool(json.loads(done.stdout)["loggedIn"])
+    except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError):
+        return None
 
 
 class ClaudeClient:
-    """Asks Claude when it is available; `warnings` collects the errors met on the way."""
+    """Asks Claude when it is available; `warnings` collects the errors met on the way.
 
-    def __init__(self, s: Settings, client: Any = None) -> None:
+    `client` (an Anthropic client) or `cli` (path of the Claude Code CLI) skip the detection.
+    """
+
+    def __init__(
+        self,
+        s: Settings,
+        client: Any = None,
+        *,
+        cli: str | None = None,
+        runner: Runner = _run,
+    ) -> None:
         self.model = s.claude_model
         self.warnings: list[str] = []
-        if not s.claude_enabled:
-            client = None
-        elif client is None and os.environ.get("ANTHROPIC_API_KEY"):
-            client = anthropic.Anthropic()
-        self._client = client
+        self._backend = s.claude_backend
+        off = self._backend == "off" or not s.claude_enabled
+        self._client = None if off else client
+        self._cli = None if off else cli
+        self._runner = runner
+        self._resolved = off or client is not None or cli is not None
+        self.via: str | None = None
+        if self._client is not None:
+            self.via = "api"
+        elif self._cli is not None:
+            self.via = "cli"
+
+    def _resolve(self) -> None:
+        """Picks the backend the first time Claude is needed (a CLI check costs a process)."""
+        self._resolved = True
+        backend = self._backend
+        if backend == "off":
+            return
+        if backend in ("auto", "cli"):
+            cli = find_cli()
+            logged_in = cli_logged_in(cli, self._runner) if cli else False
+            if cli and logged_in is not False:
+                self._cli, self.via = cli, "cli"
+                return
+            if backend == "cli":
+                self.warnings.append(
+                    "Claude Code is not installed; using the fallback."
+                    if not cli
+                    else "Claude Code is not logged in (run: claude auth login); "
+                    "using the fallback."
+                )
+                return
+        if os.environ.get("ANTHROPIC_API_KEY"):
+            self._client, self.via = anthropic.Anthropic(), "api"
+        elif backend == "api":
+            self.warnings.append("ANTHROPIC_API_KEY is not set; using the fallback.")
 
     @property
     def available(self) -> bool:
-        return self._client is not None
+        if not self._resolved:
+            self._resolve()
+        return self.via is not None
+
+    def describe(self) -> str:
+        """One line for the run header: who answers, if anyone."""
+        if not self.available:
+            return "not used (fallback without Claude)"
+        where = "Claude Code CLI, your subscription" if self.via == "cli" else "API key"
+        return f"{self.model} ({where})"
+
+    def _advice(self, kind: str, answer: str, reason: Any) -> ClaudeAdvice:
+        return ClaudeAdvice(kind, answer, str(reason or ""), self.model, self.via or "api")
 
     def _ask(self, system: str, prompt: str, schema: dict) -> dict | None:
         """Claude's JSON answer, or None (with a warning) if there is none to use."""
+        if self.via == "cli":
+            return self._ask_cli(system, prompt, schema)
+        return self._ask_api(system, prompt, schema)
+
+    def _ask_cli(self, system: str, prompt: str, schema: dict) -> dict | None:
+        args = [
+            self._cli,
+            "-p",
+            "--output-format", "json",
+            "--model", self.model,
+            "--system-prompt", system,
+            "--json-schema", json.dumps(schema),
+            "--tools", "",
+            "--no-session-persistence",
+            "--setting-sources", "",
+            "--strict-mcp-config",
+        ]  # fmt: skip
+        try:
+            done = self._runner(args, prompt, _CLI_TIMEOUT_S)
+        except subprocess.TimeoutExpired:
+            return self._cli_failed(f"no answer after {_CLI_TIMEOUT_S} s")
+        except OSError as exc:
+            return self._cli_failed(str(exc))
+        try:
+            out = json.loads(done.stdout)
+        except json.JSONDecodeError:
+            detail = (done.stderr or done.stdout).strip().splitlines()
+            return self._cli_failed(detail[-1] if detail else f"exit code {done.returncode}")
+        if not isinstance(out, dict) or out.get("is_error"):
+            message = out.get("result") if isinstance(out, dict) else None
+            return self._cli_failed(str(message or "error"))
+        data = out.get("structured_output")
+        if not isinstance(data, dict):
+            try:
+                data = json.loads(out.get("result") or "")
+            except json.JSONDecodeError:
+                self.warnings.append("Claude's answer is not valid JSON; using the fallback.")
+                return None
+        return data if isinstance(data, dict) else None
+
+    def _cli_failed(self, reason: str) -> None:
+        """Stops asking for this run: the same error would come back for every clip."""
+        self.warnings.append(f"Claude Code did not answer ({reason}); using the fallback.")
+        self.via = None
+        return None
+
+    def _ask_api(self, system: str, prompt: str, schema: dict) -> dict | None:
         try:
             response = self._client.messages.create(
                 model=self.model,
@@ -119,7 +263,7 @@ class ClaudeClient:
         abbr = data.get("abbreviation")
         if not isinstance(abbr, str) or not _ABBREVIATION.match(abbr):
             return fallback, None
-        return abbr, ClaudeAdvice("abbreviation", abbr, str(data.get("reason", "")), self.model)
+        return abbr, self._advice("abbreviation", abbr, data.get("reason"))
 
     def choose_bounds(
         self,
@@ -140,7 +284,7 @@ class ClaudeClient:
         first, last = data.get("first_word"), data.get("last_word")
         if not isinstance(first, int) or not isinstance(last, int):
             return decision.cut, None
-        advice = ClaudeAdvice("bounds", f"{first}-{last}", str(data.get("reason", "")), self.model)
+        advice = self._advice("bounds", f"{first}-{last}", data.get("reason"))
         if not bounds_ok(words, first, last, decision.matches, noted_start, noted_end, s):
             return decision.cut, advice
         cut = replace(

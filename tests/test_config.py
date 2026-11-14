@@ -227,3 +227,24 @@ def test_config_show_prints_the_notice(tmp_path):
     assert result.exit_code == 0
     assert "episodes_dir = " in result.output
     assert "dossier_episodes → episodes_dir" in result.output
+
+
+@pytest.mark.parametrize(
+    "claude, backend",
+    [
+        ("", "auto"),
+        ('[claude]\nbackend = "CLI"\n', "cli"),
+        ('[claude]\nbackend = "api"\n', "api"),
+        ("[claude]\nenabled = false\n", "off"),
+        ('[claude]\nbackend = "cli"\nenabled = false\n', "off"),
+    ],
+)
+def test_claude_backend(tmp_path, claude, backend):
+    cfg = _write(tmp_path / "config.toml", 'episodes_dir = "ep"\n' + claude)
+    assert load_settings(cfg).claude_backend == backend
+
+
+def test_unknown_claude_backend_is_an_error(tmp_path):
+    cfg = _write(tmp_path / "config.toml", 'episodes_dir = "ep"\n[claude]\nbackend = "web"\n')
+    with pytest.raises(ClipsError, match="backend"):
+        load_settings(cfg)

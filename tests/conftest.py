@@ -29,3 +29,9 @@ def transition_wav(tmp_path_factory) -> Path:
         check=True,
     )  # fmt: skip
     return out
+
+
+@pytest.fixture(autouse=True)
+def _no_claude_code(monkeypatch):
+    """Fast tests never start the real Claude Code CLI, even where it is installed."""
+    monkeypatch.setattr("podcleaner_clips.claude.find_cli", lambda: None)

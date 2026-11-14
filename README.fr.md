@@ -98,7 +98,14 @@ Le résumé affiche, pour chaque extrait, les timecodes notés et retenus, la du
 
 ## Claude, facultatif
 
-Aucun compte n'est nécessaire. Si `ANTHROPIC_API_KEY` est définie, Claude propose l'abréviation du film et choisit les bornes de chaque extrait à partir de la transcription ; ses réponses sont contrôlées (à 15 s au plus de vos timecodes, tous les fragments inclus) et gardées dans `clips.json`. Sans clé, ou si Claude est injoignable, l'abréviation reprend les initiales du titre et la coupe se fait sur la limite de phrase la plus proche de chaque timecode noté. Pour le désactiver : `enabled = false` dans `[claude]`.
+Aucun compte n'est nécessaire. Quand Claude est disponible, il propose l'abréviation du film et choisit les bornes de chaque extrait à partir de la transcription ; ses réponses sont contrôlées (à 15 s au plus de vos timecodes, tous les fragments inclus) et gardées dans `clips.json`. Sans Claude, ou s'il est injoignable, l'abréviation reprend les initiales du titre et la coupe se fait sur la limite de phrase la plus proche de chaque timecode noté.
+
+L'outil joint Claude de l'une de ces deux façons, au choix avec `backend` dans `[claude]` :
+
+- **Votre abonnement Claude** (Pro ou Max), par la ligne de commande [Claude Code](https://claude.com/claude-code) : installez-la, puis lancez une fois `claude auth login`. C'est ce qui est essayé en premier.
+- **Une clé d'API** : définissez `ANTHROPIC_API_KEY` (payée à l'usage sur l'API d'Anthropic).
+
+`backend = "auto"` (par défaut) passe par l'abonnement si Claude Code est installé et connecté, sinon par la clé d'API s'il y en a une, sinon sans Claude. `"cli"` et `"api"` imposent l'un des deux, `"off"` ne demande jamais rien à Claude. Les premières lignes de chaque passage disent qui répond.
 
 ## Contribuer
 

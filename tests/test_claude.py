@@ -1,4 +1,6 @@
 import json
+import subprocess
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -7,7 +9,7 @@ import httpx2 as httpx
 import pytest
 
 from podcleaner_clips.adjust import Word, adjust_cut
-from podcleaner_clips.claude import ClaudeAdvice, ClaudeClient
+from podcleaner_clips.claude import ClaudeAdvice, ClaudeClient, _run
 from podcleaner_clips.config import Settings
 
 S = Settings(episodes_dir=Path("episodes"))
@@ -178,3 +180,139 @@ def test_refusal_falls_back():
     client = ClaudeClient(S, client=refusing)
     assert client.choose_bounds(WORDS, FRAGMENTS[0], d, 100.0, 120.0, S) == (d.cut, None)
     assert client.warnings
+
+
+# Claude Code CLI backend: a fake runner stands in for subprocess.
+
+
+class FakeCli:
+    """Answers `claude auth status` and `claude -p` like the real CLI (--output-format json)."""
+
+    def __init__(self, answer=None, *, logged_in=True, raises=None, stdout=None):
+        self.answer, self.logged_in, self.raises, self.stdout = answer, logged_in, raises, stdout
+        self.calls: list[tuple[list[str], str]] = []
+
+    def __call__(self, args, stdin, timeout):
+        self.calls.append((args, stdin))
+        if args[1:3] == ["auth", "status"]:
+            return subprocess.CompletedProcess(
+                args, 0, json.dumps({"loggedIn": self.logged_in}), ""
+            )
+        if self.raises is not None:
+            raise self.raises
+        if self.stdout is not None:
+            return subprocess.CompletedProcess(args, 1, self.stdout, "boom")
+        out = {"type": "result", "is_error": False, "result": "", "structured_output": self.answer}
+        return subprocess.CompletedProcess(args, 0, json.dumps(out), "")
+
+
+def cli_settings(backend="auto"):
+    return Settings(episodes_dir=Path("episodes"), claude_backend=backend)
+
+
+def test_cli_answers_the_abbreviation(monkeypatch):
+    monkeypatch.setattr("podcleaner_clips.claude.find_cli", lambda: "/bin/claude")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "k")  # the CLI still comes first
+    runner = FakeCli({"abbreviation": "AV", "reason": "initials"})
+    client = ClaudeClient(cli_settings(), runner=runner)
+
+    abbr, advice = client.propose_abbreviation("Avengers", "Avengers (2012).mkv")
+
+    assert abbr == "AV"
+    assert advice == ClaudeAdvice("abbreviation", "AV", "initials", "claude-haiku-5-5", "cli")
+    assert "Claude Code CLI" in client.describe()
+    args, stdin = runner.calls[-1]
+    assert args[:2] == ["/bin/claude", "-p"]
+    assert args[args.index("--model") + 1] == "claude-haiku-5-5"
+    assert args[args.index("--tools") + 1] == ""
+    assert "--no-session-persistence" in args
+    assert json.loads(args[args.index("--json-schema") + 1])["required"] == [
+        "abbreviation",
+        "reason",
+    ]
+    assert "Film title: Avengers" in stdin
+
+
+def test_cli_answer_in_result_text_is_read(monkeypatch):
+    out = {"type": "result", "is_error": False, "result": '{"abbreviation": "AV", "reason": ""}'}
+    runner = FakeCli(stdout=json.dumps(out))
+    client = ClaudeClient(S, cli="/bin/claude", runner=runner)
+    assert client.propose_abbreviation("Avengers", None)[0] == "AV"
+
+
+def test_cli_bounds_are_checked_like_the_api(monkeypatch):
+    d = decision()
+    first = index_of("Écoute-moi")
+    last = max(i for i, w in enumerate(WORDS) if w.text == "bien.")
+    runner = FakeCli({"first_word": first, "last_word": last, "reason": "whole scene"})
+    cut, advice = ClaudeClient(S, cli="/bin/claude", runner=runner).choose_bounds(
+        WORDS, FRAGMENTS[0], d, 100.0, 120.0, S
+    )
+    assert cut.method == "claude"
+    assert advice is not None and advice.via == "cli"
+
+
+@pytest.mark.parametrize(
+    "runner, reason",
+    [
+        (FakeCli(raises=subprocess.TimeoutExpired("claude", 180)), "no answer after"),
+        (FakeCli(stdout="not json"), "boom"),
+        (FakeCli(stdout=json.dumps({"is_error": True, "result": "Not logged in"})), "Not logged"),
+        (FakeCli(raises=FileNotFoundError("claude")), "claude"),
+    ],
+)
+def test_cli_error_falls_back_once_for_the_whole_run(runner, reason):
+    client = ClaudeClient(S, cli="/bin/claude", runner=runner)
+    d = decision()
+    assert client.propose_abbreviation("Le Dîner de cons", None) == ("DDC", None)
+    assert client.choose_bounds(WORDS, FRAGMENTS[0], d, 100.0, 120.0, S) == (d.cut, None)
+    assert len(runner.calls) == 1  # not asked again after the first failure
+    assert len(client.warnings) == 1 and reason in client.warnings[0]
+
+
+def test_auto_without_cli_login_uses_the_api_key(monkeypatch):
+    monkeypatch.setattr("podcleaner_clips.claude.find_cli", lambda: "/bin/claude")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
+    client = ClaudeClient(cli_settings(), runner=FakeCli(logged_in=False))
+    assert client.available and client.via == "api"
+
+
+def test_auto_with_nothing_is_the_silent_fallback(monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    client = ClaudeClient(cli_settings())
+    assert not client.available
+    assert client.warnings == []
+    assert "fallback" in client.describe()
+
+
+@pytest.mark.parametrize(
+    "backend, cli, logged_in, warning",
+    [
+        ("cli", None, True, "not installed"),
+        ("cli", "/bin/claude", False, "claude auth login"),
+        ("api", "/bin/claude", True, "ANTHROPIC_API_KEY"),
+    ],
+)
+def test_forced_backend_missing_warns(monkeypatch, backend, cli, logged_in, warning):
+    monkeypatch.setattr("podcleaner_clips.claude.find_cli", lambda: cli)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    client = ClaudeClient(cli_settings(backend), runner=FakeCli(logged_in=logged_in))
+    assert not client.available
+    assert len(client.warnings) == 1 and warning in client.warnings[0]
+
+
+def test_backend_off_never_runs_anything(monkeypatch):
+    monkeypatch.setattr("podcleaner_clips.claude.find_cli", lambda: "/bin/claude")
+    runner = FakeCli({"abbreviation": "AV", "reason": ""})
+    client = ClaudeClient(cli_settings("off"), runner=runner)
+    assert client.propose_abbreviation("Avengers", None) == ("AV", None)
+    assert runner.calls == []
+
+
+def test_cli_runs_without_the_api_key(monkeypatch, tmp_path):
+    """The real runner hides ANTHROPIC_API_KEY so the CLI bills the subscription."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "secret")
+    done = _run(
+        [sys.executable, "-c", "import os; print(os.environ.get('ANTHROPIC_API_KEY'))"], "", 30
+    )
+    assert done.stdout.strip() == "None"

@@ -9,7 +9,7 @@ Nov 6, 2026 · @Julien — revised Nov 9, 2026 from real viewing notes
 
 The goal is a command-line tool that cuts, from a film, the clips noted while watching it, and files them ready to be played live while recording the episode. Working name: podcleaner-clips.
 
-The tool runs on macOS and Windows and will be published as open source, like podcleaner-editor. It stays usable without an account or an API key: Claude picks the film abbreviation and refines the cuts, but the tool has a fallback for every case.
+The tool runs on macOS and Windows and will be published as open source, like podcleaner-editor. It stays usable without an account or an API key (Claude is reached through a Claude subscription with the Claude Code CLI, or an API key): Claude picks the film abbreviation and refines the cuts, but the tool has a fallback for every case.
 
 Notes are taken quickly, during the film: timecodes are approximate (about ten seconds off) and the line is only a reference of a few words, not necessarily exact. The tool must find the scene and cut it cleanly despite that.
 
@@ -21,7 +21,7 @@ Notes are taken quickly, during the film: timecodes are approximate (about ten s
 | Track selection | Always takes a French dub (VF) audio track; if there are several (VFF from France, VFQ from Québec), VFF by default (configurable); if no track is tagged French, takes the first one and says so | ffprobe | None |
 | Finding the references | Finds each reference in the scene: first in the film's French subtitles if it has any, then in the Whisper transcription of the dub | ffmpeg (subtitles), faster-whisper or mlx-whisper (word timestamps), rapidfuzz | Choose the right occurrence when the reference is approximate or repeated |
 | Cut adjustment | Keeps the noted scene, but snaps its start and end to sentence boundaries within ±15 s, without cutting a word, with every reference included | faster-whisper or mlx-whisper | Choose the scene's exact bounds so that it makes sense |
-| Film abbreviation | Gives the film a short, stable abbreviation (e.g. "DDC" for Le Dîner de cons), kept for all its clips | None | Suggest the abbreviation; without an API key, the tool uses the title's initials |
+| Film abbreviation | Gives the film a short, stable abbreviation (e.g. "DDC" for Le Dîner de cons), kept for all its clips | None | Suggest the abbreviation; without Claude, the tool uses the title's initials |
 | Clip audio | Fade-in and fade-out, transition sound at the start and the end, normalization to -16 LUFS and -1 dBTP | ffmpeg | None |
 | Clip video | Same cut as the audio, black screen during the transition sound | ffmpeg | None |
 | Clip index | Writes one JSON file per film with each clip, its reference, its duration and its files | None | None |
@@ -113,9 +113,9 @@ The first version does not include the live player, video transition effects or 
 | Reference | A few words of the line, approximate; several fragments separated by `…`, `...` or ` - ` |
 | Clip bounds | The clip keeps the noted scene. Start and end are snapped to sentence boundaries within ±15 s of the noted timecodes, without cutting a word, and every reference is included: better a little margin than a cut-off line. References not found: noted timecodes kept (without cutting a word) and flagged |
 | Locating | French text subtitles if any (other than "forced"), then Whisper on the scene ±15 s; Whisper only otherwise |
-| Claude's role | With a key, Claude picks each clip's bounds from the transcription; its answer is checked. Without a key, a simple rule: the sentence boundary closest to each noted timecode |
+| Claude's role | When Claude is available (Claude Code CLI with a subscription first, else an API key), it picks each clip's bounds from the transcription; its answer is checked. Without Claude, a simple rule: the sentence boundary closest to each noted timecode |
 | Naming | `{abbreviation}-{number}-{first-words-of-the-reference}.{format}` |
-| Abbreviation | Suggested by Claude, title initials without an API key, then frozen in the notes file |
+| Abbreviation | Suggested by Claude, title initials without Claude, then frozen in the notes file |
 | Language | Always a VF track, for audio and video alike; VFF preferred when there is also a VFQ (configurable) |
 | Fades | 0.7 s at the start and the end |
 | Transition sound | Starts just before the clip; the fade-in happens during its end, and the film sound is at 100% once the transition is over. The same in reverse at the end of the clip |

@@ -269,6 +269,8 @@ def run(
 
     echo(f"Film: {film}")
     echo(f"Audio track: {_describe_track(track)}")
+    if opts.adjust or not notes.abbreviation:  # the only times Claude may be asked
+        echo(f"Claude: {claude.describe()}")
 
     abbr_advice = None
     if notes.abbreviation:

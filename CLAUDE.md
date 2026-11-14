@@ -42,7 +42,7 @@ Skills du projet : `test-rapide` (test de bout en bout sur un film généré, av
 | Bornes des extraits | Timecodes approximatifs (~10 s) et référence partielle (quelques mots, plusieurs fragments possibles séparés par `…`, `...` ou ` - `). L'extrait reprend la scène notée : début et fin calés sur des limites de phrase à ±15 s des timecodes notés, sans couper un mot, toutes les références trouvées incluses |
 | Langue | Toujours une piste VF, VFF de préférence quand il y a aussi une VFQ (réglable) ; sans piste marquée française, la première, avec un avertissement |
 | Repérage | Sous-titres français en texte s'il y en a (hors « forcés »), puis Whisper ; coupes toujours sur les mots du doublage transcrits par Whisper |
-| Abréviation | Proposée par Claude, initiales du titre sans clé d'API, puis figée dans le fichier de notes |
+| Abréviation | Proposée par Claude, initiales du titre sans Claude, puis figée dans le fichier de notes |
 | Nommage | `{abréviation}-{numéro}-{premiers-mots-de-la-référence}.{format}` |
 | Fondus | 0,7 s à l'ouverture et à la fermeture |
 | Son de transition | Commence juste avant l'extrait ; le fondu d'ouverture se fait pendant sa fin ; même chose à l'envers en fin d'extrait |
@@ -64,7 +64,8 @@ Skills du projet : `test-rapide` (test de bout en bout sur un film généré, av
 | Image pendant la transition | Noire tant que le son du film n'a pas commencé, pour rester synchrone |
 | Canaux | Sortie stéréo (une VF 5.1 est réduite en stéréo) ; WAV 24 bits |
 | Doute | Fragment introuvable (score < 70) ou peu sûr (< 85) : signalé ; aucun fragment trouvé : timecodes notés gardés (calés sur des mots), signalés |
-| Rôle de Claude | Avec une clé, Claude choisit les bornes de chaque extrait à partir de la transcription ; réponse contrôlée (bornes à ±15 s des notes, fragments inclus) ; sans clé, limite de phrase la plus proche de chaque timecode noté |
+| Rôle de Claude | Quand Claude est disponible, il choisit les bornes de chaque extrait à partir de la transcription ; réponse contrôlée (bornes à ±15 s des notes, fragments inclus) ; sans Claude, limite de phrase la plus proche de chaque timecode noté |
+| Accès à Claude | `[claude] backend` : `auto` (CLI Claude Code connectée = abonnement, sinon `ANTHROPIC_API_KEY`, sinon repli), `cli`, `api`, `off`. La CLI est lancée sans outils, sans session gardée, sans réglages ni MCP, depuis un dossier temporaire, sans `ANTHROPIC_API_KEY` ; une erreur de la CLI arrête de la solliciter pour le reste du passage |
 | Modèles | Whisper `large-v3-turbo` en `fr` ; Claude `claude-haiku-5-5` ; réglables |
 | Extraits retirés | Fichiers non supprimés, listés comme orphelins |
 
