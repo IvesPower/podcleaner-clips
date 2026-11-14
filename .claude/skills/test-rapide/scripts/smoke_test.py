@@ -81,13 +81,13 @@ def dominant_hz(wav: Path, start: float, length: float) -> float:
 
 
 def check_outputs(out: Path, label: str) -> None:
-    index = out / "extraits.json"
-    clips = json.loads(index.read_text(encoding="utf-8"))["extraits"] if index.is_file() else []
-    report(len(clips) == 2, f"{label}: extraits.json lists the 2 clips")
+    index = out / "clips.json"
+    clips = json.loads(index.read_text(encoding="utf-8"))["clips"] if index.is_file() else []
+    report(len(clips) == 2, f"{label}: clips.json lists the 2 clips")
     for clip, name in zip(clips, NAMES, strict=False):
         # Expected length from the cut actually chosen (Whisper may move the bounds).
-        cut = clip["retenu"]
-        layout = ClipLayout(parse_tc(cut["debut"]), parse_tc(cut["fin"]), FADE_S, TRANSITION_S)
+        cut = clip["chosen"]
+        layout = ClipLayout(parse_tc(cut["start"]), parse_tc(cut["end"]), FADE_S, TRANSITION_S)
         wav, mp4 = out / "audio" / f"{name}.wav", out / "video" / f"{name}.mp4"
         report(wav.is_file() and mp4.is_file(), f"{label}: {name}.wav and .mp4 written")
         if not wav.is_file() or not mp4.is_file():
@@ -141,14 +141,14 @@ def main() -> int:
         config = root / "config.toml"
         config.write_text(
             # json.dumps quotes like TOML: apostrophes and accents in paths are fine.
-            f"dossier_episodes = {json.dumps(episodes.as_posix(), ensure_ascii=False)}\n"
-            f"son_transition = {json.dumps(transition.as_posix(), ensure_ascii=False)}\n"
-            "[claude]\nactif = false\n",
+            f"episodes_dir = {json.dumps(episodes.as_posix(), ensure_ascii=False)}\n"
+            f"transition_sound = {json.dumps(transition.as_posix(), ensure_ascii=False)}\n"
+            "[claude]\nenabled = false\n",
             encoding="utf-8",
         )
         notes = root / "notes" / "test film.md"
         notes.parent.mkdir()
-        lines = [f"fichier: {film.as_posix()}", ""]
+        lines = [f"file: {film.as_posix()}", ""]
         lines += [f"{int(s) // 60}:{int(s) % 60:02d} {ref} {int(e) // 60}:{int(e) % 60:02d}"
                   for s, e, ref in CLIPS]  # fmt: skip
         notes.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -156,7 +156,7 @@ def main() -> int:
         base = [str(notes), "--config", str(config)]
 
         run_and_check([*base, "--no-adjust"], "no-adjust", out, expect_unchanged=False)
-        report("abreviation: TF" in notes.read_text(encoding="utf-8"), "abbreviation in notes")
+        report("abbreviation: TF" in notes.read_text(encoding="utf-8"), "abbreviation in notes")
         if opts.no_whisper:
             run_and_check([*base, "--no-adjust"], "rerun", out, expect_unchanged=True)
         else:

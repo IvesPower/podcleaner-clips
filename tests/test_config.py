@@ -21,7 +21,7 @@ def _write(path: Path, text: str) -> Path:
 
 
 def test_defaults_applied(tmp_path):
-    cfg = _write(tmp_path / "config.toml", f'dossier_episodes = "{(tmp_path / "ep").as_posix()}"\n')
+    cfg = _write(tmp_path / "config.toml", f'episodes_dir = "{(tmp_path / "ep").as_posix()}"\n')
     s = load_settings(cfg)
     assert isinstance(s, Settings)
     assert s.episodes_dir == tmp_path / "ep"
@@ -43,11 +43,11 @@ def test_defaults_applied(tmp_path):
 def test_sections_override_defaults(tmp_path):
     cfg = _write(
         tmp_path / "config.toml",
-        'dossier_episodes = "ep"\n'
-        'doublage_prefere = "VFQ"\n'
-        "[ajustement]\ntolerance_s = 10\nsous_titres = false\n"
-        "[son]\nfondu_s = 1.0\n"
-        '[claude]\nactif = false\nmodele = "autre"\n',
+        'episodes_dir = "ep"\n'
+        'preferred_dub = "VFQ"\n'
+        "[adjust]\ntolerance_s = 10\nuse_subtitles = false\n"
+        "[audio]\nfade_s = 1.0\n"
+        '[claude]\nenabled = false\nmodel = "autre"\n',
     )
     s = load_settings(cfg)
     assert s.preferred_dub == "VFQ"
@@ -59,7 +59,7 @@ def test_sections_override_defaults(tmp_path):
 
 
 def test_relative_paths_resolve_against_config_dir(tmp_path):
-    cfg = _write(tmp_path / "conf" / "config.toml", 'dossier_episodes = "episodes"\n')
+    cfg = _write(tmp_path / "conf" / "config.toml", 'episodes_dir = "episodes"\n')
     assert load_settings(cfg).episodes_dir == tmp_path / "conf" / "episodes"
 
 
@@ -70,14 +70,14 @@ def test_default_path_is_in_user_config_dir():
 
 
 def test_env_var_overrides_default_path(tmp_path, monkeypatch):
-    cfg = _write(tmp_path / "ailleurs.toml", 'dossier_episodes = "ep"\n')
+    cfg = _write(tmp_path / "ailleurs.toml", 'episodes_dir = "ep"\n')
     monkeypatch.setenv(CONFIG_ENV_VAR, str(cfg))
     assert load_settings().episodes_dir == tmp_path / "ep"
 
 
 def test_argument_beats_env_var(tmp_path, monkeypatch):
     monkeypatch.setenv(CONFIG_ENV_VAR, str(tmp_path / "absent.toml"))
-    cfg = _write(tmp_path / "config.toml", 'dossier_episodes = "ep"\n')
+    cfg = _write(tmp_path / "config.toml", 'episodes_dir = "ep"\n')
     assert load_settings(cfg).episodes_dir == tmp_path / "ep"
 
 
@@ -90,17 +90,17 @@ def test_missing_file_message_mentions_config_init(tmp_path):
 
 
 def test_missing_episodes_dir_is_an_error(tmp_path):
-    cfg = _write(tmp_path / "config.toml", 'doublage_prefere = "VFF"\n')
-    with pytest.raises(ClipsError, match="dossier_episodes"):
+    cfg = _write(tmp_path / "config.toml", 'preferred_dub = "VFF"\n')
+    with pytest.raises(ClipsError, match="episodes_dir"):
         load_settings(cfg)
 
 
 @pytest.mark.parametrize(
     "text, key",
     [
-        ('dossier_episode = "ep"\n', "dossier_episode"),
-        ('dossier_episodes = "ep"\n[ajustement]\ntolerence_s = 3\n', "tolerence_s"),
-        ('dossier_episodes = "ep"\n[sons]\nfondu_s = 1\n', "sons"),
+        ('episode_dir = "ep"\n', "episode_dir"),
+        ('episodes_dir = "ep"\n[adjust]\ntolerence_s = 3\n', "tolerence_s"),
+        ('episodes_dir = "ep"\n[sounds]\nfade_s = 1\n', "sounds"),
     ],
 )
 def test_unknown_key_is_an_error(tmp_path, text, key):
@@ -110,22 +110,22 @@ def test_unknown_key_is_an_error(tmp_path, text, key):
 
 
 def test_wrong_type_is_an_error(tmp_path):
-    cfg = _write(tmp_path / "config.toml", 'dossier_episodes = "ep"\n[son]\nfondu_s = "long"\n')
-    with pytest.raises(ClipsError, match="fondu_s"):
+    cfg = _write(tmp_path / "config.toml", 'episodes_dir = "ep"\n[audio]\nfade_s = "long"\n')
+    with pytest.raises(ClipsError, match="fade_s"):
         load_settings(cfg)
 
 
 def test_invalid_toml_is_an_error(tmp_path):
-    cfg = _write(tmp_path / "config.toml", "dossier_episodes = \n")
+    cfg = _write(tmp_path / "config.toml", "episodes_dir = \n")
     with pytest.raises(ClipsError, match="config.toml"):
         load_settings(cfg)
 
 
 def test_preferred_dub_must_be_vff_or_vfq(tmp_path):
-    cfg = _write(tmp_path / "config.toml", 'dossier_episodes = "ep"\ndoublage_prefere = "VO"\n')
+    cfg = _write(tmp_path / "config.toml", 'episodes_dir = "ep"\npreferred_dub = "VO"\n')
     with pytest.raises(ClipsError, match="VFF"):
         load_settings(cfg)
-    ok = _write(tmp_path / "ok.toml", 'dossier_episodes = "ep"\ndoublage_prefere = "vfq"\n')
+    ok = _write(tmp_path / "ok.toml", 'episodes_dir = "ep"\npreferred_dub = "vfq"\n')
     assert load_settings(ok).preferred_dub == "VFQ"
 
 
@@ -134,7 +134,7 @@ def test_paths_with_accents_and_tilde(tmp_path, monkeypatch):
     monkeypatch.setenv("USERPROFILE", str(tmp_path))
     cfg = _write(
         tmp_path / "Réglages été" / "config.toml",
-        'dossier_episodes = "~/Épisodes"\nson_transition = "~/Sons/transition à.wav"\n',
+        'episodes_dir = "~/Épisodes"\ntransition_sound = "~/Sons/transition à.wav"\n',
     )
     s = load_settings(cfg)
     assert s.episodes_dir == tmp_path / "Épisodes"
@@ -145,12 +145,10 @@ def test_template_roundtrips(tmp_path):
     cfg = tmp_path / "sub" / "config.toml"
     write_template(cfg)
     text = cfg.read_text(encoding="utf-8")
-    assert "dossier_episodes" in text
-    with pytest.raises(ClipsError, match="dossier_episodes"):
-        load_settings(cfg)  # the template leaves dossier_episodes to fill in
-    cfg.write_text(
-        text.replace('# dossier_episodes = ""', 'dossier_episodes = "ep"'), encoding="utf-8"
-    )
+    assert "episodes_dir" in text
+    with pytest.raises(ClipsError, match="episodes_dir"):
+        load_settings(cfg)  # the template leaves episodes_dir to fill in
+    cfg.write_text(text.replace('# episodes_dir = ""', 'episodes_dir = "ep"'), encoding="utf-8")
     s = load_settings(cfg)
     assert s.episodes_dir == cfg.parent / "ep"
     assert s.tolerance_s == 15.0
@@ -171,13 +169,61 @@ def test_cli_config_init_and_show(tmp_path):
     assert cfg.exists()
     assert str(cfg) in result.output
     cfg.write_text(
-        cfg.read_text(encoding="utf-8").replace(
-            '# dossier_episodes = ""', 'dossier_episodes = "ep"'
-        ),
+        cfg.read_text(encoding="utf-8").replace('# episodes_dir = ""', 'episodes_dir = "ep"'),
         encoding="utf-8",
     )
     result = runner.invoke(app, ["config", "show", "--config", str(cfg)])
     assert result.exit_code == 0, result.output
-    assert "dossier_episodes" in result.output
+    assert "episodes_dir" in result.output
     assert str(tmp_path / "ep") in result.output
     assert "large-v3-turbo" in result.output
+
+
+def test_english_keys_give_no_notice(tmp_path):
+    cfg = _write(tmp_path / "config.toml", 'episodes_dir = "ep"\n[audio]\nfade_s = 1.0\n')
+    assert load_settings(cfg).notices == ()
+
+
+def test_old_french_keys_still_read_with_notice(tmp_path):
+    cfg = _write(
+        tmp_path / "config.toml",
+        'dossier_episodes = "ep"\n'
+        'son_transition = "t.wav"\n'
+        'doublage_prefere = "VFQ"\n'
+        "[ajustement]\nsous_titres = false\n"
+        "[son]\nfondu_s = 1.0\n"
+        '[claude]\nactif = false\nmodele = "autre"\n',
+    )
+    s = load_settings(cfg)
+    assert s.episodes_dir == tmp_path / "ep"
+    assert s.transition_sound == tmp_path / "t.wav"
+    assert s.preferred_dub == "VFQ"
+    assert s.use_subtitles is False
+    assert s.fade_s == 1.0
+    assert (s.claude_enabled, s.claude_model) == (False, "autre")
+    assert len(s.notices) == 1
+    assert "dossier_episodes → episodes_dir" in s.notices[0]
+    assert "[son] fondu_s → [audio] fade_s" in s.notices[0]
+
+
+def test_old_section_with_new_key_is_read_with_notice(tmp_path):
+    cfg = _write(
+        tmp_path / "config.toml", 'episodes_dir = "ep"\n[ajustement]\nuse_subtitles = false\n'
+    )
+    s = load_settings(cfg)
+    assert s.use_subtitles is False
+    assert "[ajustement] → [adjust]" in s.notices[0]
+
+
+def test_old_and_new_name_together_is_an_error(tmp_path):
+    cfg = _write(tmp_path / "config.toml", 'episodes_dir = "ep"\ndossier_episodes = "ep2"\n')
+    with pytest.raises(ClipsError, match="twice"):
+        load_settings(cfg)
+
+
+def test_config_show_prints_the_notice(tmp_path):
+    cfg = _write(tmp_path / "config.toml", 'dossier_episodes = "ep"\n')
+    result = CliRunner().invoke(app, ["config", "show", "--config", str(cfg)])
+    assert result.exit_code == 0
+    assert "episodes_dir = " in result.output
+    assert "dossier_episodes → episodes_dir" in result.output

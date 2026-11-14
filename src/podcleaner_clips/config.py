@@ -1,8 +1,8 @@
-"""Per-person configuration: a TOML file with French keys."""
+"""Per-person configuration: a TOML file (French keys of version 0.1.0 are still read)."""
 
 import os
 import tomllib
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import Any
 
@@ -34,27 +34,50 @@ class Settings:
     true_peak: float = -1.0
     claude_enabled: bool = True
     claude_model: str = "claude-haiku-5-5"
+    # Not settings: what to tell the user about the file (old key names, …).
+    notices: tuple[str, ...] = field(default=(), compare=False)
 
 
 # (TOML section, TOML key) → Settings field; section None = top level of the file.
 _KEYS: dict[tuple[str | None, str], str] = {
-    (None, "dossier_episodes"): "episodes_dir",
-    (None, "dossier_films"): "films_dir",
-    (None, "son_transition"): "transition_sound",
-    (None, "doublage_prefere"): "preferred_dub",
-    ("ajustement", "tolerance_s"): "tolerance_s",
-    ("ajustement", "sous_titres"): "use_subtitles",
-    ("ajustement", "score_trouve"): "score_found",
-    ("ajustement", "score_sur"): "score_sure",
-    ("ajustement", "pause_phrase_s"): "sentence_gap_s",
-    ("ajustement", "marge_avant_s"): "pad_before_s",
-    ("ajustement", "marge_apres_s"): "pad_after_s",
-    ("ajustement", "modele_whisper"): "whisper_model",
-    ("son", "fondu_s"): "fade_s",
-    ("son", "lufs"): "lufs",
-    ("son", "true_peak"): "true_peak",
-    ("claude", "actif"): "claude_enabled",
-    ("claude", "modele"): "claude_model",
+    (None, "episodes_dir"): "episodes_dir",
+    (None, "films_dir"): "films_dir",
+    (None, "transition_sound"): "transition_sound",
+    (None, "preferred_dub"): "preferred_dub",
+    ("adjust", "tolerance_s"): "tolerance_s",
+    ("adjust", "use_subtitles"): "use_subtitles",
+    ("adjust", "score_found"): "score_found",
+    ("adjust", "score_sure"): "score_sure",
+    ("adjust", "sentence_gap_s"): "sentence_gap_s",
+    ("adjust", "pad_before_s"): "pad_before_s",
+    ("adjust", "pad_after_s"): "pad_after_s",
+    ("adjust", "whisper_model"): "whisper_model",
+    ("audio", "fade_s"): "fade_s",
+    ("audio", "lufs"): "lufs",
+    ("audio", "true_peak"): "true_peak",
+    ("claude", "enabled"): "claude_enabled",
+    ("claude", "model"): "claude_model",
+}
+# Keys of version 0.1.0 (French), still read: (section, key) → current (section, key).
+_LEGACY_SECTIONS = {"ajustement": "adjust", "son": "audio"}
+_LEGACY_KEYS: dict[tuple[str | None, str], tuple[str | None, str]] = {
+    (None, "dossier_episodes"): (None, "episodes_dir"),
+    (None, "dossier_films"): (None, "films_dir"),
+    (None, "son_transition"): (None, "transition_sound"),
+    (None, "doublage_prefere"): (None, "preferred_dub"),
+    ("ajustement", "tolerance_s"): ("adjust", "tolerance_s"),
+    ("ajustement", "sous_titres"): ("adjust", "use_subtitles"),
+    ("ajustement", "score_trouve"): ("adjust", "score_found"),
+    ("ajustement", "score_sur"): ("adjust", "score_sure"),
+    ("ajustement", "pause_phrase_s"): ("adjust", "sentence_gap_s"),
+    ("ajustement", "marge_avant_s"): ("adjust", "pad_before_s"),
+    ("ajustement", "marge_apres_s"): ("adjust", "pad_after_s"),
+    ("ajustement", "modele_whisper"): ("adjust", "whisper_model"),
+    ("son", "fondu_s"): ("audio", "fade_s"),
+    ("son", "lufs"): ("audio", "lufs"),
+    ("son", "true_peak"): ("audio", "true_peak"),
+    ("claude", "actif"): ("claude", "enabled"),
+    ("claude", "modele"): ("claude", "model"),
 }
 _SECTIONS = {section for section, _ in _KEYS if section is not None}
 _PATH_FIELDS = {"episodes_dir", "films_dir", "transition_sound"}
@@ -69,44 +92,44 @@ _TEMPLATE = """\
 # is the default).
 
 # Folder where clips are stored, one subfolder per film (required).
-# dossier_episodes = ""
+# episodes_dir = ""
 
 # Folder to look for films in when the notes file only gives a file name.
-# dossier_films = ""
+# films_dir = ""
 
 # Sound played before and after each clip (required, unless --no-transition).
-# son_transition = ""
+# transition_sound = ""
 
 # Preferred French dub when the film has both VFF (France) and VFQ (Quebec): "VFF" or "VFQ".
-# doublage_prefere = "VFF"
+# preferred_dub = "VFF"
 
-[ajustement]
+[adjust]
 # Allowed gap (seconds) between a noted timecode and the chosen cut.
 # tolerance_s = 15.0
 # Look for the lines in the film's French subtitles first.
-# sous_titres = true
+# use_subtitles = true
 # Similarity score (0-100) for a line to count as found, then as sure.
-# score_trouve = 70
-# score_sur = 85
+# score_found = 70
+# score_sure = 85
 # Silence (seconds) that marks the end of a sentence.
-# pause_phrase_s = 0.6
+# sentence_gap_s = 0.6
 # Margin (seconds) kept before the first word and after the last one.
-# marge_avant_s = 0.10
-# marge_apres_s = 0.25
+# pad_before_s = 0.10
+# pad_after_s = 0.25
 # Whisper model used to transcribe the dub.
-# modele_whisper = "large-v3-turbo"
+# whisper_model = "large-v3-turbo"
 
-[son]
+[audio]
 # Length (seconds) of the fade-in and fade-out.
-# fondu_s = 0.7
+# fade_s = 0.7
 # Target loudness (integrated LUFS) and maximum true peak (dBTP).
 # lufs = -16.0
 # true_peak = -1.0
 
 [claude]
 # Ask Claude (abbreviation, cuts) when ANTHROPIC_API_KEY is set.
-# actif = true
-# modele = "claude-haiku-5-5"
+# enabled = true
+# model = "claude-haiku-5-5"
 """
 
 
@@ -134,36 +157,61 @@ def load_settings(path: Path | None = None) -> Settings:
         raise ClipsError(f"Cannot read configuration file ({path}): {exc}") from exc
 
     values: dict[str, Any] = {}
+    legacy: list[str] = []
     for key, value in data.items():
         if isinstance(value, dict):
-            if key not in _SECTIONS:
+            if key not in _SECTIONS and key not in _LEGACY_SECTIONS:
                 raise ClipsError(f"Unknown section in {path}: [{key}]")
             for sub_key, sub_value in value.items():
-                _set(values, path, key, sub_key, sub_value)
+                _set(values, legacy, path, key, sub_key, sub_value)
         else:
-            _set(values, path, None, key, value)
+            _set(values, legacy, path, None, key, value)
 
     if "episodes_dir" not in values:
-        raise ClipsError(f"Set dossier_episodes in {path}.")
+        raise ClipsError(f"Set episodes_dir in {path}.")
 
     dub = values.get("preferred_dub", "VFF").upper()
     if dub not in DUBS:
-        raise ClipsError(f'doublage_prefere must be "VFF" or "VFQ" ({path}).')
+        raise ClipsError(f'preferred_dub must be "VFF" or "VFQ" ({path}).')
     values["preferred_dub"] = dub
 
     for name in _PATH_FIELDS & values.keys():
         p = Path(values[name]).expanduser()
         values[name] = p if p.is_absolute() else path.parent / p
 
-    return Settings(**values)
+    notices = ()
+    if legacy:
+        notices = (
+            f"{path} uses old French key names; rename them: " + ", ".join(dict.fromkeys(legacy)),
+        )
+    return Settings(**values, notices=notices)
 
 
-def _set(values: dict[str, Any], path: Path, section: str | None, key: str, value: Any) -> None:
-    field = _KEYS.get((section, key))
-    if field is None:
-        where = f"[{section}] " if section else ""
-        raise ClipsError(f"Unknown key in {path}: {where}{key}")
-    expected = _FIELD_TYPES[field]
+def _label(section: str | None, key: str) -> str:
+    return f"[{section}] {key}" if section else key
+
+
+def _set(
+    values: dict[str, Any],
+    legacy: list[str],
+    path: Path,
+    section: str | None,
+    key: str,
+    value: Any,
+) -> None:
+    current = _LEGACY_KEYS.get((section, key))
+    if current is not None:
+        legacy.append(f"{_label(section, key)} → {_label(*current)}")
+        section, key = current
+    elif section in _LEGACY_SECTIONS:
+        legacy.append(f"[{section}] → [{_LEGACY_SECTIONS[section]}]")
+        section = _LEGACY_SECTIONS[section]
+    name = _KEYS.get((section, key))
+    if name is None:
+        raise ClipsError(f"Unknown key in {path}: {_label(section, key)}")
+    if name in values:
+        raise ClipsError(f"{_label(section, key)} is set twice in {path} (old and new name).")
+    expected = _FIELD_TYPES[name]
     if expected is bool:
         ok = isinstance(value, bool)
     elif expected is int:
@@ -174,8 +222,8 @@ def _set(values: dict[str, Any], path: Path, section: str | None, key: str, valu
     else:  # text or path
         ok = isinstance(value, str)
     if not ok:
-        raise ClipsError(f"Invalid value for {key} in {path}: {value!r}")
-    values[field] = value
+        raise ClipsError(f"Invalid value for {_label(section, key)} in {path}: {value!r}")
+    values[name] = value
 
 
 def write_template(path: Path) -> None:
@@ -188,8 +236,8 @@ def write_template(path: Path) -> None:
 def describe(settings: Settings) -> list[tuple[str, str]]:
     """(TOML key, display value) pairs, in file order."""
     rows = []
-    for (section, key), field in _KEYS.items():
-        value = getattr(settings, field)
+    for (section, key), name in _KEYS.items():
+        value = getattr(settings, name)
         label = f"{section}.{key}" if section else key
         if value is None:
             text = "(none)"

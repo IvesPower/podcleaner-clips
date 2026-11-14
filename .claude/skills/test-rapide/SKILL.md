@@ -20,11 +20,11 @@ What the script does, so you can explain a failure:
 1. Generates a 20 s film with `scripts/make_test_film.py`: VFF at 660 Hz, original at 440 Hz, VFQ at 880 Hz, and a 1 s transition sound at 330 Hz.
 2. Writes a notes file with two clips in the real format (`0:03 bonjour tout le monde 0:08`) and a throwaway config (`[claude] actif = false`, so no network).
 3. Runs `run --no-adjust`, then `run` (Whisper), then `run` again. After each run that renders, it checks:
-   - `TF-01-….wav` / `.mp4` and `TF-02-….wav` / `.mp4` exist, and `extraits.json` lists 2 clips;
+   - `TF-01-….wav` / `.mp4` and `TF-02-….wav` / `.mp4` exist, and `clips.json` lists 2 clips;
    - each file lasts the expected length (cut + transitions, ±0.1 s), computed from the cut recorded in the index;
    - each WAV is at -16 ± 1 LUFS with a true peak ≤ -1 dBTP;
    - the dominant frequency in the middle of each clip is 660 Hz: the VFF track was chosen, not the VFQ or the original;
-   - `abreviation: TF` was written into the notes;
+   - `abbreviation: TF` was written into the notes;
    - the last run says `unchanged` for both clips (nothing redone).
 4. Prints one `PASS` / `FAIL` line per check and exits with code 1 if any check failed. Everything is written in a temporary folder and deleted at the end.
 

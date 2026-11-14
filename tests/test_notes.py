@@ -122,23 +122,23 @@ def test_missing_file_is_a_clips_error(tmp_path):
         read_notes(tmp_path / "absent.md")
 
 
-def test_write_abbreviation_after_fichier_keeps_rest_byte_for_byte(tmp_path):
-    original = "# Titre\r\nfichier: film.mkv\r\n\r\n2:35 a b 2:51\r\n"
+def test_write_abbreviation_after_file_keeps_rest_byte_for_byte(tmp_path):
+    original = "# Titre\r\nfile: film.mkv\r\n\r\n2:35 a b 2:51\r\n"
     path = write(tmp_path, original)
     write_abbreviation(path, "TNB")
     assert path.read_bytes() == (
-        b"# Titre\r\nfichier: film.mkv\r\nabreviation: TNB\r\n\r\n2:35 a b 2:51\r\n"
+        b"# Titre\r\nfile: film.mkv\r\nabbreviation: TNB\r\n\r\n2:35 a b 2:51\r\n"
     )
 
 
 def test_write_abbreviation_after_title_or_at_top(tmp_path):
     path = write(tmp_path, "# Titre\n2:35 a b 2:51\n")
     write_abbreviation(path, "AB")
-    assert path.read_text(encoding="utf-8") == "# Titre\nabreviation: AB\n2:35 a b 2:51\n"
+    assert path.read_text(encoding="utf-8") == "# Titre\nabbreviation: AB\n2:35 a b 2:51\n"
 
     path = write(tmp_path, "﻿2:35 a b 2:51", name="sans-en-tete.md")
     write_abbreviation(path, "AB")
-    assert path.read_bytes() == "﻿abreviation: AB\n2:35 a b 2:51".encode()
+    assert path.read_bytes() == "﻿abbreviation: AB\n2:35 a b 2:51".encode()
 
 
 def test_write_abbreviation_replaces_existing_value(tmp_path):
@@ -146,5 +146,20 @@ def test_write_abbreviation_replaces_existing_value(tmp_path):
     write_abbreviation(path, "DDC2")
     assert read_notes(path).abbreviation == "DDC2"
     assert path.read_text(encoding="utf-8") == LEGACY.replace(
-        "abreviation: DDC", "abreviation: DDC2"
+        "abreviation: DDC", "abbreviation: DDC2"
     )
+
+
+def test_reads_english_header_without_notice(tmp_path):
+    n = read_notes(
+        write(tmp_path, "# Avengers\nfile: Avengers.mkv\nabbreviation: av\n5:20 a b 5:30\n")
+    )
+    assert (n.title, n.film_file, n.abbreviation) == ("Avengers", "Avengers.mkv", "AV")
+    assert n.notices == []
+
+
+def test_french_header_still_read_with_notice(tmp_path):
+    n = read_notes(write(tmp_path, LEGACY))
+    assert (n.film_file, n.abbreviation) == ("Le Diner de cons (1998).mkv", "DDC")
+    assert len(n.notices) == 1
+    assert "fichier: → file:" in n.notices[0] and "abreviation: → abbreviation:" in n.notices[0]

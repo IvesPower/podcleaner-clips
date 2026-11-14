@@ -9,11 +9,12 @@ from podcleaner_clips import pipeline
 from podcleaner_clips.adjust import Word
 from podcleaner_clips.cli import app
 from podcleaner_clips.errors import ClipsError
-from podcleaner_clips.index import INDEX_NAME
+from podcleaner_clips.index import _LEGACY_KEYS as _INDEX_LEGACY_KEYS
+from podcleaner_clips.index import INDEX_NAME, LEGACY_INDEX_NAME
 from podcleaner_clips.pipeline import RunOptions, run
 
 # Two clips of the 12 s test film.
-NOTES = "fichier: {film}\n\n0:02 bonjour tout le monde 0:05\n0:07 au revoir 0:09\n"
+NOTES = "file: {film}\n\n0:02 bonjour tout le monde 0:05\n0:07 au revoir 0:09\n"
 
 
 class FakeTranscriber:
@@ -44,9 +45,9 @@ class Setup:
         self.episodes = tmp_path / "episodes"
         self.config = tmp_path / "config.toml"
         self.config.write_text(
-            f'dossier_episodes = "{self.episodes.as_posix()}"\n'
-            f'son_transition = "{transition.as_posix()}"\n'
-            "[claude]\nactif = false\n",
+            f'episodes_dir = "{self.episodes.as_posix()}"\n'
+            f'transition_sound = "{transition.as_posix()}"\n'
+            "[claude]\nenabled = false\n",
             encoding="utf-8",
         )
         self.notes = tmp_path / "notes" / "film.md"
@@ -81,7 +82,7 @@ def setup(tmp_path, test_film, transition_wav) -> Setup:
 EXPECTED = [
     "audio/TF-01-bonjour-tout-le-monde.wav",
     "audio/TF-02-au-revoir.wav",
-    "extraits.json",
+    "clips.json",
     "video/TF-01-bonjour-tout-le-monde.mp4",
     "video/TF-02-au-revoir.mp4",
 ]
@@ -92,11 +93,11 @@ def test_end_to_end_no_adjust(setup):
 
     assert report.failures == 0
     assert setup.files() == EXPECTED
-    assert "abreviation: TF" in setup.notes.read_text(encoding="utf-8")
-    first = setup.index()["extraits"][0]
-    assert first["retenu"]["methode"] == "notes"
-    assert first["retenu"]["debut"] == "00:00:02.000"
-    assert setup.index()["film"]["abreviation"] == "TF"
+    assert "abbreviation: TF" in setup.notes.read_text(encoding="utf-8")
+    first = setup.index()["clips"][0]
+    assert first["chosen"]["method"] == "notes"
+    assert first["chosen"]["start"] == "00:00:02.000"
+    assert setup.index()["film"]["abbreviation"] == "TF"
     assert any("TF-01-bonjour-tout-le-monde" in line and "new" in line for line in setup.lines)
 
 
@@ -116,7 +117,7 @@ def test_audio_only_and_video_only(setup):
     assert setup.files() == [
         "audio/TF-01-bonjour-tout-le-monde.wav",
         "audio/TF-02-au-revoir.wav",
-        "extraits.json",
+        "clips.json",
     ]
 
     setup.run(adjust=False, audio=False)  # the WAV used for the video is temporary
@@ -158,12 +159,12 @@ def test_inserted_line_renames_files(setup):
         "audio/TF-01-premier-mot.wav",
         "audio/TF-02-bonjour-tout-le-monde.wav",
         "audio/TF-03-au-revoir.wav",
-        "extraits.json",
+        "clips.json",
         "video/TF-01-premier-mot.mp4",
         "video/TF-02-bonjour-tout-le-monde.mp4",
         "video/TF-03-au-revoir.mp4",
     ]
-    assert [c["numero"] for c in setup.index()["extraits"]] == [1, 2, 3]
+    assert [c["number"] for c in setup.index()["clips"]] == [1, 2, 3]
 
 
 def test_removed_line_files_are_kept_and_listed(setup):
@@ -176,11 +177,11 @@ def test_removed_line_files_are_kept_and_listed(setup):
 
     assert "audio/TF-02-au-revoir.wav" in setup.files()
     assert any("TF-02-au-revoir.wav" in line for line in setup.lines)
-    assert [c["numero"] for c in setup.index()["extraits"]] == [1]
+    assert [c["number"] for c in setup.index()["clips"]] == [1]
 
 
 def test_clip_past_film_end_fails_alone(tmp_path, test_film, transition_wav):
-    notes = "fichier: {film}\n0:02 bonjour tout le monde 0:05\n0:10 trop loin 0:20\n"
+    notes = "file: {film}\n0:02 bonjour tout le monde 0:05\n0:10 trop loin 0:20\n"
     s = Setup(tmp_path, test_film, transition_wav, notes)
 
     report = s.run(adjust=False)
@@ -192,12 +193,12 @@ def test_clip_past_film_end_fails_alone(tmp_path, test_film, transition_wav):
 
 
 def test_film_resolved_from_films_dir(tmp_path, test_film, transition_wav):
-    s = Setup(tmp_path, test_film, transition_wav, "fichier: test film.mkv\n0:02 a b 0:05\n")
+    s = Setup(tmp_path, test_film, transition_wav, "file: test film.mkv\n0:02 a b 0:05\n")
     s.config.write_text(
-        f'dossier_episodes = "{s.episodes.as_posix()}"\n'
-        f'son_transition = "{transition_wav.as_posix()}"\n'
-        f'dossier_films = "{test_film.parent.as_posix()}"\n'
-        "[claude]\nactif = false\n",
+        f'episodes_dir = "{s.episodes.as_posix()}"\n'
+        f'transition_sound = "{transition_wav.as_posix()}"\n'
+        f'films_dir = "{test_film.parent.as_posix()}"\n'
+        "[claude]\nenabled = false\n",
         encoding="utf-8",
     )
 
@@ -207,7 +208,7 @@ def test_film_resolved_from_films_dir(tmp_path, test_film, transition_wav):
 
 
 def test_missing_film_lists_the_places_searched(tmp_path, test_film, transition_wav):
-    s = Setup(tmp_path, test_film, transition_wav, "fichier: absent.mkv\n0:02 a b 0:05\n")
+    s = Setup(tmp_path, test_film, transition_wav, "file: absent.mkv\n0:02 a b 0:05\n")
     with pytest.raises(ClipsError, match="--film") as err:
         s.run(adjust=False, dry_run=True)
     assert str(s.notes.parent / "absent.mkv") in str(err.value)
@@ -224,10 +225,10 @@ def test_film_option_and_title_from_film_name(tmp_path, transition_wav):
 
 def test_missing_transition_sound_is_an_error(setup):
     setup.config.write_text(
-        f'dossier_episodes = "{setup.episodes.as_posix()}"\n[claude]\nactif = false\n',
+        f'episodes_dir = "{setup.episodes.as_posix()}"\n[claude]\nenabled = false\n',
         encoding="utf-8",
     )
-    with pytest.raises(ClipsError, match="son_transition"):
+    with pytest.raises(ClipsError, match="transition_sound"):
         setup.run(adjust=False)
     setup.run(adjust=False, transition=False, dry_run=True)  # fine without a transition
 
@@ -252,10 +253,10 @@ def test_subtitles_used_when_present(tmp_path, transition_wav, monkeypatch):
 def test_fake_transcriber_cut_written_to_index(setup):
     setup.run(video=False)
 
-    first = setup.index()["extraits"][0]
-    assert first["retenu"]["methode"] == "whisper"
-    assert first["retenu"]["debut"] != first["notes"]["debut"]
-    assert first["fragments_trouves"] == ["bonjour tout le monde"]
+    first = setup.index()["clips"][0]
+    assert first["chosen"]["method"] == "whisper"
+    assert first["chosen"]["start"] != first["noted"]["start"]
+    assert first["found_fragments"] == ["bonjour tout le monde"]
 
 
 def test_cli_run_exit_codes(setup):
@@ -269,3 +270,34 @@ def test_cli_run_exit_codes(setup):
         ["run", str(setup.notes), "--config", str(setup.config), "--audio-only", "--video-only"],
     )
     assert both.exit_code != 0
+
+
+def _to_legacy(value, key=None):
+    """A version 2 index written back with the French keys of version 1."""
+    french = {v: k for k, v in _INDEX_LEGACY_KEYS.items()}
+    if isinstance(value, list):
+        return [_to_legacy(v) for v in value]
+    if not isinstance(value, dict) or key == "files":
+        return value
+    out = {french.get(k, k): _to_legacy(v, k) for k, v in value.items()}
+    if out.get("type") in ("abbreviation", "bounds"):
+        out["type"] = {"abbreviation": "abreviation", "bounds": "bornes"}[out["type"]]
+    return out
+
+
+def test_legacy_index_and_french_header_are_migrated_without_rerender(setup):
+    setup.run(adjust=False)
+    data = setup.index()
+    data["version"] = 1
+    (setup.out / LEGACY_INDEX_NAME).write_text(json.dumps(_to_legacy(data)), encoding="utf-8")
+    (setup.out / INDEX_NAME).unlink()
+    setup.notes.write_text(
+        setup.notes.read_text(encoding="utf-8").replace("file:", "fichier:"), encoding="utf-8"
+    )
+    setup.lines.clear()
+
+    setup.run(adjust=False)
+
+    assert setup.files() == EXPECTED  # clips.json back, extraits.json gone
+    assert sum("unchanged" in line for line in setup.lines) == 2
+    assert any("fichier: → file:" in line for line in setup.lines)

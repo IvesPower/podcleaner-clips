@@ -21,18 +21,18 @@ _MAX_TOKENS = 16000
 
 _ABBREVIATION_SCHEMA = {
     "type": "object",
-    "properties": {"abreviation": {"type": "string"}, "raison": {"type": "string"}},
-    "required": ["abreviation", "raison"],
+    "properties": {"abbreviation": {"type": "string"}, "reason": {"type": "string"}},
+    "required": ["abbreviation", "reason"],
     "additionalProperties": False,
 }
 _BOUNDS_SCHEMA = {
     "type": "object",
     "properties": {
-        "premier_mot": {"type": "integer"},
-        "dernier_mot": {"type": "integer"},
-        "raison": {"type": "string"},
+        "first_word": {"type": "integer"},
+        "last_word": {"type": "integer"},
+        "reason": {"type": "string"},
     },
-    "required": ["premier_mot", "dernier_mot", "raison"],
+    "required": ["first_word", "last_word", "reason"],
     "additionalProperties": False,
 }
 
@@ -56,7 +56,7 @@ _BOUNDS_SYSTEM = (
 
 @dataclass(frozen=True)
 class ClaudeAdvice:
-    kind: str  # "abreviation" or "bornes"
+    kind: str  # "abbreviation" or "bounds"
     answer: str
     reason: str
     model: str
@@ -116,10 +116,10 @@ class ClaudeClient:
         data = self._ask(_ABBREVIATION_SYSTEM, prompt, _ABBREVIATION_SCHEMA)
         if data is None:
             return fallback, None
-        abbr = data.get("abreviation")
+        abbr = data.get("abbreviation")
         if not isinstance(abbr, str) or not _ABBREVIATION.match(abbr):
             return fallback, None
-        return abbr, ClaudeAdvice("abreviation", abbr, str(data.get("raison", "")), self.model)
+        return abbr, ClaudeAdvice("abbreviation", abbr, str(data.get("reason", "")), self.model)
 
     def choose_bounds(
         self,
@@ -137,10 +137,10 @@ class ClaudeClient:
         data = self._ask(_BOUNDS_SYSTEM, prompt, _BOUNDS_SCHEMA)
         if data is None:
             return decision.cut, None
-        first, last = data.get("premier_mot"), data.get("dernier_mot")
+        first, last = data.get("first_word"), data.get("last_word")
         if not isinstance(first, int) or not isinstance(last, int):
             return decision.cut, None
-        advice = ClaudeAdvice("bornes", f"{first}-{last}", str(data.get("raison", "")), self.model)
+        advice = ClaudeAdvice("bounds", f"{first}-{last}", str(data.get("reason", "")), self.model)
         if not bounds_ok(words, first, last, decision.matches, noted_start, noted_end, s):
             return decision.cut, advice
         cut = replace(

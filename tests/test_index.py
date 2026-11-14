@@ -8,6 +8,7 @@ from podcleaner_clips.claude import ClaudeAdvice
 from podcleaner_clips.errors import ClipsError
 from podcleaner_clips.index import (
     INDEX_NAME,
+    LEGACY_INDEX_NAME,
     ClipEntry,
     FilmIndex,
     file_sha256,
@@ -109,7 +110,7 @@ def test_file_sha256(tmp_path):
 
 def test_first_run_all_new(tmp_path):
     actions, orphans = plan_actions(NOTES, fps(NOTES), None, tmp_path, BOTH)
-    assert kinds(actions) == [(1, "nouveau"), (2, "nouveau"), (3, "nouveau")]
+    assert kinds(actions) == [(1, "new"), (2, "new"), (3, "new")]
     assert all(a.reuse is None and a.rename_from == {} for a in actions)
     assert orphans == []
 
@@ -120,7 +121,7 @@ def test_unchanged_when_same_fingerprint_and_files_exist(tmp_path):
 
     actions, orphans = plan_actions(NOTES, fps(NOTES), index_of(entries), tmp_path, BOTH)
 
-    assert kinds(actions) == [(1, "inchange"), (2, "inchange"), (3, "inchange")]
+    assert kinds(actions) == [(1, "unchanged"), (2, "unchanged"), (3, "unchanged")]
     assert [a.reuse for a in actions] == entries
     assert orphans == []
 
@@ -132,7 +133,7 @@ def test_changed_line_only_that_clip(tmp_path):
 
     actions, _ = plan_actions(edited, fps(edited), index_of(entries), tmp_path, BOTH)
 
-    assert kinds(actions) == [(1, "inchange"), (2, "modifie"), (3, "inchange")]
+    assert kinds(actions) == [(1, "unchanged"), (2, "changed"), (3, "unchanged")]
     assert actions[1].reuse is None
 
 
@@ -142,7 +143,7 @@ def test_transition_sha_change_invalidates_all(tmp_path):
 
     actions, _ = plan_actions(NOTES, fps(NOTES, "other"), index_of(entries), tmp_path, BOTH)
 
-    assert kinds(actions) == [(1, "modifie"), (2, "modifie"), (3, "modifie")]
+    assert kinds(actions) == [(1, "changed"), (2, "changed"), (3, "changed")]
 
 
 def test_deleted_output_file_is_missing_kind(tmp_path):
@@ -152,11 +153,11 @@ def test_deleted_output_file_is_missing_kind(tmp_path):
 
     actions, _ = plan_actions(NOTES, fps(NOTES), index_of(entries), tmp_path, BOTH)
 
-    assert kinds(actions) == [(1, "inchange"), (2, "manquant"), (3, "inchange")]
+    assert kinds(actions) == [(1, "unchanged"), (2, "missing"), (3, "unchanged")]
     assert actions[1].reuse == entries[1]  # the chosen cut is reused for the missing file
     # Only the audio was asked for: the missing video does not matter.
     audio_only, _ = plan_actions(NOTES, fps(NOTES), index_of(entries), tmp_path, {"audio"})
-    assert audio_only[1].kind == "inchange"
+    assert audio_only[1].kind == "unchanged"
 
 
 def test_new_output_kind_wanted_is_missing_kind(tmp_path):
@@ -165,7 +166,7 @@ def test_new_output_kind_wanted_is_missing_kind(tmp_path):
 
     actions, _ = plan_actions(NOTES, fps(NOTES), index_of(entries), tmp_path, BOTH)
 
-    assert {a.kind for a in actions} == {"manquant"}
+    assert {a.kind for a in actions} == {"missing"}
 
 
 def test_inserted_line_renames_shifted_clips(tmp_path):
@@ -177,7 +178,7 @@ def test_inserted_line_renames_shifted_clips(tmp_path):
     actions, orphans = plan_actions(shifted, fps(shifted), index_of(entries), tmp_path, BOTH)
 
     # Number 1 existed, but its clip moved to 2: the inserted line is new.
-    assert kinds(actions) == [(1, "nouveau"), (2, "renomme"), (3, "renomme"), (4, "renomme")]
+    assert kinds(actions) == [(1, "new"), (2, "renamed"), (3, "renamed"), (4, "renamed")]
     assert actions[1].reuse == entries[0]
     assert actions[1].rename_from == {
         "audio": tmp_path / "audio/AB-01.wav",
@@ -193,7 +194,7 @@ def test_removed_line_reported_as_orphan(tmp_path):
 
     actions, orphans = plan_actions(remaining, fps(remaining), index_of(entries), tmp_path, BOTH)
 
-    assert kinds(actions) == [(1, "inchange"), (2, "renomme")]
+    assert kinds(actions) == [(1, "unchanged"), (2, "renamed")]
     assert orphans == [tmp_path / "audio/AB-02.wav", tmp_path / "video/AB-02.mp4"]
 
 
@@ -213,15 +214,15 @@ def test_identical_lines_each_get_their_own_entry(tmp_path):
 
     actions, _ = plan_actions(twins, fps(twins), index_of(entries), tmp_path, BOTH)
 
-    assert kinds(actions) == [(1, "inchange"), (2, "inchange")]
+    assert kinds(actions) == [(1, "unchanged"), (2, "unchanged")]
     assert [a.reuse for a in actions] == entries
 
 
 def test_index_roundtrip_utf8(tmp_path):
-    advice = ClaudeAdvice("abreviation", "DDC", "Initiales du titre", "claude-haiku-5-5")
+    advice = ClaudeAdvice("abbreviation", "DDC", "Initiales du titre", "claude-haiku-5-5")
     clip = entry(NOTES[0])
     clip = ClipEntry(
-        **{**clip.__dict__, "claude_advice": ClaudeAdvice("bornes", "3-41", "Fin de phrase", "m")}
+        **{**clip.__dict__, "claude_advice": ClaudeAdvice("bounds", "3-41", "Fin de phrase", "m")}
     )
     index = FilmIndex(
         title="Le Dîner de cons",
@@ -239,23 +240,23 @@ def test_index_roundtrip_utf8(tmp_path):
     text = path.read_text(encoding="utf-8")
     assert "Le Dîner de cons" in text and "s'appelle Juste Leblanc" in text  # not \u escaped
     data = json.loads(text)
-    assert data["version"] == 1
-    assert data["film"]["piste_audio"] == {
+    assert data["version"] == 2
+    assert data["film"]["audio_track"] == {
         "index": 1,
-        "langue": "fre",
-        "titre": "Français VFF",
-        "canaux": 6,
+        "language": "fre",
+        "title": "Français VFF",
+        "channels": 6,
     }
-    first = data["extraits"][0]
-    assert first["notes"] == {"debut": "00:12:34.000", "fin": "00:12:51.000"}
-    assert first["retenu"] == {
-        "debut": "00:12:33.500",
-        "fin": "00:12:51.300",
-        "methode": "whisper",
+    first = data["clips"][0]
+    assert first["noted"] == {"start": "00:12:34.000", "end": "00:12:51.000"}
+    assert first["chosen"] == {
+        "start": "00:12:33.500",
+        "end": "00:12:51.300",
+        "method": "whisper",
         "score": 96.2,
-        "doute": None,
+        "doubt": None,
     }
-    assert first["fichiers"] == {"audio": "audio/AB-01.wav", "video": "video/AB-01.mp4"}
+    assert first["files"] == {"audio": "audio/AB-01.wav", "video": "video/AB-01.mp4"}
     assert [p.name for p in path.parent.iterdir()] == [INDEX_NAME]  # no temporary file left
 
 
@@ -268,3 +269,54 @@ def test_load_broken_index_is_an_error(tmp_path):
     path.write_text("{ not json", encoding="utf-8")
     with pytest.raises(ClipsError, match=INDEX_NAME):
         load_index(path)
+
+
+LEGACY_INDEX = {
+    "version": 1,
+    "film": {
+        "titre": "Le Dîner de cons",
+        "abreviation": "DDC",
+        "fichier": "/films/Le Dîner de cons (1998).mkv",
+        "piste_audio": {"index": 1, "langue": "fre", "titre": "Français VFF", "canaux": 6},
+    },
+    "avis_claude": [
+        {"type": "abreviation", "reponse": "DDC", "raison": "Initiales", "modele": "m"}
+    ],
+    "extraits": [
+        {
+            "numero": 1,
+            "reference": "il s'appelle Juste Leblanc",
+            "fragments_trouves": ["il s'appelle Juste Leblanc"],
+            "empreinte": "abc",
+            "notes": {"debut": "00:12:34.000", "fin": "00:12:51.000"},
+            "retenu": {
+                "debut": "00:12:33.500",
+                "fin": "00:12:51.300",
+                "methode": "claude",
+                "score": 96.2,
+                "doute": None,
+            },
+            "avis_claude": {"type": "bornes", "reponse": "3-41", "raison": "", "modele": "m"},
+            "duree_s": 21.4,
+            "fichiers": {"audio": "audio/DDC-01.wav"},
+        }
+    ],
+}
+
+
+def test_legacy_french_index_is_read(tmp_path):
+    path = tmp_path / LEGACY_INDEX_NAME
+    path.write_text(json.dumps(LEGACY_INDEX, ensure_ascii=False), encoding="utf-8")
+
+    index = load_index(path)
+
+    assert index is not None
+    assert (index.title, index.abbreviation) == ("Le Dîner de cons", "DDC")
+    assert index.audio_track == AudioTrack(1, "fre", "Français VFF", 6)
+    assert index.claude_advice == [ClaudeAdvice("abbreviation", "DDC", "Initiales", "m")]
+    clip = index.clips[0]
+    assert (clip.number, clip.fingerprint, clip.duration_s) == (1, "abc", 21.4)
+    assert (clip.noted_start, clip.noted_end) == (754.0, 771.0)
+    assert (clip.cut.start, clip.cut.method, clip.cut.score) == (753.5, "claude", 96.2)
+    assert clip.claude_advice == ClaudeAdvice("bounds", "3-41", "", "m")
+    assert clip.files == {"audio": "audio/DDC-01.wav"}
