@@ -57,6 +57,8 @@ Cela installe deux noms pour la même commande, utilisables depuis n'importe que
 | `pclips config` | Affiche la configuration telle qu'elle est lue (`--path` : seulement l'emplacement du fichier) |
 | `pclips --version` | Affiche la version |
 
+`pclips` seul, `init` et `run` commencent par le nom de l'outil dessiné en pixels. Il n'apparaît jamais quand la sortie va dans un fichier ou un autre programme ; pour le retirer : `pclips --no-banner …` ou `PODCLEANER_CLIPS_NO_BANNER=1`.
+
 Le premier passage qui repère des répliques télécharge le modèle Whisper (`large-v3-turbo`, plus de 1 Go). Sur un Mac Apple Silicon, il tourne avec MLX ; ailleurs, avec faster-whisper sur le processeur.
 
 ## Configuration

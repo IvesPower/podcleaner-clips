@@ -57,6 +57,8 @@ This installs two names for the same command, usable from any folder: `podcleane
 | `pclips config` | Shows the configuration as read (`--path`: only where the file is) |
 | `pclips --version` | Shows the version |
 
+`pclips` alone, `init` and `run` start with the tool's name drawn in pixels. It is never shown when the output goes to a file or another program; turn it off with `pclips --no-banner …` or `PODCLEANER_CLIPS_NO_BANNER=1`.
+
 The first run that locates lines downloads the Whisper model (`large-v3-turbo`, over 1 GB). On a Mac with Apple Silicon it runs with MLX; elsewhere with faster-whisper on the CPU.
 
 ## Configure

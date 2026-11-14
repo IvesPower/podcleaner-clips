@@ -645,6 +645,7 @@ dependencies = [
     { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "platformdirs" },
     { name = "rapidfuzz" },
+    { name = "rich" },
     { name = "typer" },
 ]
 
@@ -662,6 +663,7 @@ requires-dist = [
     { name = "numpy" },
     { name = "platformdirs" },
     { name = "rapidfuzz" },
+    { name = "rich" },
     { name = "typer" },
 ]
 

@@ -4,7 +4,7 @@ from typing import Annotated
 
 import typer
 
-from podcleaner_clips import __version__, config, prog_name
+from podcleaner_clips import __version__, banner, config, prog_name
 from podcleaner_clips.errors import ClipsError
 
 app = typer.Typer(
@@ -37,9 +37,16 @@ def _root(
             "--version", callback=_print_version, is_eager=True, help="Show the version and exit."
         ),
     ] = False,
+    no_banner: Annotated[
+        bool,
+        typer.Option(
+            "--no-banner", help=f"No title at the start (or set {banner.NO_BANNER_ENV_VAR}=1)."
+        ),
+    ] = False,
 ) -> None:
     """Cut the movie clips noted while watching."""
     if ctx.invoked_subcommand is None:  # the command alone: its help, not an error
+        banner.show(ctx)
         typer.echo(ctx.get_help())
 
 
@@ -49,6 +56,7 @@ def _stdin_is_tty() -> bool:
 
 @app.command("init")
 def init_command(
+    ctx: typer.Context,
     config_path: ConfigOption = None,
     no_input: Annotated[
         bool,
@@ -56,6 +64,7 @@ def init_command(
     ] = False,
 ) -> None:
     """Create your configuration file by answering a few questions."""
+    banner.show(ctx)
     path = config.resolve_config_path(config_path)
     if not no_input and _stdin_is_tty():
         from podcleaner_clips.wizard import run_wizard
@@ -105,12 +114,13 @@ def config_show(config_path: ConfigOption = None) -> None:
 
 
 @config_app.command("init", hidden=True)
-def config_init(config_path: ConfigOption = None) -> None:
-    init_command(config_path, no_input=False)
+def config_init(ctx: typer.Context, config_path: ConfigOption = None) -> None:
+    init_command(ctx, config_path, no_input=False)
 
 
 @app.command("run")
 def run_command(
+    ctx: typer.Context,
     notes: Annotated[Path, typer.Argument(help="Notes file of the film (one clip per line).")],
     film: Annotated[
         Path | None, typer.Option("--film", help="The film (else `file:` in the notes).")
@@ -135,6 +145,8 @@ def run_command(
 ) -> None:
     """Cut the clips noted for a film; only what changed since the last run is redone."""
     from podcleaner_clips.pipeline import RunOptions, run  # Whisper and numpy load lazily
+
+    banner.show(ctx)
 
     report = run(
         RunOptions(
