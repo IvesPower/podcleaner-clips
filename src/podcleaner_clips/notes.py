@@ -1,6 +1,6 @@
 """Reading the notes file taken while watching the film.
 
-A clip line starts and ends with a timecode: `27:15 ce bébé c'est une connerie 27:37`.
+A clip line starts and ends with a timecode: `42:30 vas-y, je t'attends, tête de bouclier 42:40`.
 The legacy form `- 00:12:34 > 00:12:51 | réplique` is still accepted. Any other line is ignored.
 """
 

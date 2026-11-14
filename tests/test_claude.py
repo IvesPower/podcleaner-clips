@@ -42,12 +42,12 @@ def lay(t0: float, text: str) -> list[Word]:
 WORDS = [
     *lay(95.0, "Bon on y va."),
     *lay(101.0, "Écoute-moi bien."),
-    *lay(105.0, "Ce bébé c'est une connerie."),
+    *lay(105.0, "Je t'attends tête de bouclier."),
     *lay(112.0, "Tu le sais très bien."),
     *lay(119.0, "Allez viens."),
     *lay(126.0, "Non."),
 ]
-FRAGMENTS = ["ce bébé c'est une connerie"]
+FRAGMENTS = ["je t'attends tête de bouclier"]
 
 
 def decision():
@@ -129,7 +129,7 @@ def test_choose_bounds_rejects_out_of_bounds():
 
 def test_choose_bounds_rejects_cut_missing_a_fragment():
     d = decision()
-    first, last = index_of("Écoute-moi"), index_of("Ce")  # stops inside the reference
+    first, last = index_of("Écoute-moi"), index_of("Je")  # stops inside the reference
     client = ClaudeClient(S, client=fake({"first_word": first, "last_word": last, "reason": ""}))
     cut, _ = client.choose_bounds(WORDS, FRAGMENTS[0], d, 100.0, 120.0, S)
     assert cut == d.cut
@@ -146,7 +146,7 @@ def test_choose_bounds_sends_numbered_words_and_notes():
     client = ClaudeClient(S, client=SimpleNamespace(messages=messages))
     client.choose_bounds(WORDS, FRAGMENTS[0], decision(), 100.0, 120.0, S)
     prompt = json.dumps(messages.calls[0]["messages"], ensure_ascii=False)
-    assert "connerie" in prompt
+    assert "bouclier" in prompt
     assert f"[{index_of('Écoute-moi')}]" in prompt
     assert "1:40" in prompt and "2:00" in prompt
 

@@ -38,7 +38,7 @@ Skills du projet : `test-rapide` (test de bout en bout sur un film généré, av
 | Plateformes | macOS et Windows ; chemins via `pathlib`, jamais de chemin en dur ; texte en `encoding="utf-8"` |
 | Sans compte | Aucune clé d'API requise : chaque appel à Claude a un repli |
 | Formats d'entrée | .mkv le plus souvent, aussi .avi et .mp4 |
-| Liste des extraits | Un fichier de notes par film ; une ligne par extrait : `TC référence TC` (ex. `27:15 ce bébé c'est une connerie 27:37`) ; `HH:MM:SS` ou `MM:SS`, `6;25` et `25 min 30` tolérés ; ancienne forme `- TC > TC \| réplique` acceptée ; les autres lignes sont ignorées |
+| Liste des extraits | Un fichier de notes par film ; une ligne par extrait : `TC référence TC` (ex. `42:30 vas-y, je t'attends, tête de bouclier 42:40`) ; `HH:MM:SS` ou `MM:SS`, `6;25` et `25 min 30` tolérés ; ancienne forme `- TC > TC \| réplique` acceptée ; les autres lignes sont ignorées |
 | Bornes des extraits | Timecodes approximatifs (~10 s) et référence partielle (quelques mots, plusieurs fragments possibles séparés par `…`, `...` ou ` - `). L'extrait reprend la scène notée : début et fin calés sur des limites de phrase à ±15 s des timecodes notés, sans couper un mot, toutes les références trouvées incluses |
 | Langue | Toujours une piste VF, VFF de préférence quand il y a aussi une VFQ (réglable) ; sans piste marquée française, la première, avec un avertissement |
 | Repérage | Sous-titres français en texte s'il y en a (hors « forcés »), puis Whisper ; coupes toujours sur les mots du doublage transcrits par Whisper |
@@ -58,7 +58,7 @@ Skills du projet : `test-rapide` (test de bout en bout sur un film généré, av
 | --- | --- |
 | Paquet / commande | `podcleaner_clips` / `podcleaner-clips` (`run`, `config init`, `config show`, `version`) |
 | Configuration | TOML dans `platformdirs.user_config_dir("podcleaner-clips")/config.toml`, remplaçable par `--config` ou `PODCLEANER_CLIPS_CONFIG` |
-| Titre et dossier du film | Titre : `# ` des notes, sinon nom du fichier du film jusqu'à l'année (`The Night Before (2015)`) ; dossier : titre sans accents ni `<>:"/\|?*`, ≤ 60 caractères. Film : `--film` ou `file:` |
+| Titre et dossier du film | Titre : `# ` des notes, sinon nom du fichier du film jusqu'à l'année (`Avengers (2012)`) ; dossier : titre sans accents ni `<>:"/\|?*`, ≤ 60 caractères. Film : `--film` ou `file:` |
 | Slug | Minuscules, sans accents, mots entiers jusqu'à 40 caractères ; vide → `extrait` |
 | Abréviation de repli | Sans l'article initial, initiales en majuscules, 2 à 6 caractères |
 | Image pendant la transition | Noire tant que le son du film n'a pas commencé, pour rester synchrone |

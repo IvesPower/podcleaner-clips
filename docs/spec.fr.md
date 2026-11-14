@@ -53,7 +53,7 @@ La scène du téléphone est trop longue pour un extrait.
 
 - **Timecodes** : `HH:MM:SS`, ou `MM:SS` sous une heure (`45:12` = 45 min 12 s). Les fautes de frappe courantes sont acceptées : `6;25` (point-virgule), `25 min 30`. Ils sont approximatifs : une dizaine de secondes d'écart est normale.
 - **Référence** : quelques mots de la réplique, de mémoire, pas forcément exacts. Une scène longue peut avoir plusieurs fragments, séparés par `…`, `...` ou ` - ` ; chacun doit se trouver dans l'extrait.
-- **En-tête facultatif** : `# Titre`, `file:` (fichier du film) et `abbreviation:` (abréviation) ; les noms français `fichier:` et `abreviation:` de la version 0.1.0 restent lus. Sans `file:`, le film est donné avec `--film`. Sans titre, l'outil le déduit du nom du fichier du film (`The Night Before (2015) Bluray-1080p.mkv` → `The Night Before (2015)`).
+- **En-tête facultatif** : `# Titre`, `file:` (fichier du film) et `abbreviation:` (abréviation) ; les noms français `fichier:` et `abreviation:` de la version 0.1.0 restent lus. Sans `file:`, le film est donné avec `--film`. Sans titre, l'outil le déduit du nom du fichier du film (`Avengers (2012) Bluray-1080p.mkv` → `Avengers (2012)`).
 - **Autres lignes** : toute ligne qui ne commence pas et ne finit pas par un timecode est ignorée, on peut donc garder ses autres notes dans le même fichier. L'ancienne forme `- 00:12:34 > 00:12:51 | réplique` reste acceptée.
 
 La ligne `abbreviation` est facultative. Si elle manque, l'outil la fait proposer par Claude puis l'écrit dans le fichier, pour qu'elle ne change plus. Le nom de chaque extrait reprend les premiers mots de la référence : `DDC-01-il-s-appelle-juste-leblanc.wav`.

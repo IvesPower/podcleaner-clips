@@ -51,36 +51,36 @@ def test_parse_srt_tolerates_bom_crlf_and_gaps():
 
 
 def test_normalize():
-    assert normalize("  Ce bébé, c'est une CONNERIE… ") == "ce bebe c est une connerie"
+    assert normalize("  Je t'attends, tête de BOUCLIER… ") == "je t attends tete de bouclier"
     assert normalize("L’œuvre — « là »!") == "l oeuvre la"
 
 
 def test_anchor_found_despite_approximate_reference():
     cues = [
         Cue(1630.0, 1632.0, "Tu crois ?"),
-        Cue(1638.0, 1640.5, "Ce bébé, c'est une connerie."),
+        Cue(1638.0, 1640.5, "Je t'attends, tête de bouclier."),
         Cue(1641.0, 1643.0, "Je te jure."),
     ]
-    anchors = find_anchors(cues, ["ce bebe cest une connerie"], 1635.0, 1657.0, S)
+    anchors = find_anchors(cues, ["je tattends tete de bouclier"], 1635.0, 1657.0, S)
     assert len(anchors) == 1
     anchor = anchors[0]
-    assert anchor.fragment == "ce bebe cest une connerie"
+    assert anchor.fragment == "je tattends tete de bouclier"
     assert (anchor.start, anchor.end) == (1638.0, 1640.5)
     assert anchor.score >= S.score_sure
 
 
 def test_anchor_limited_to_tolerance_window():
-    cues = [Cue(100.0, 102.0, "Ce bébé, c'est une connerie.")]
+    cues = [Cue(100.0, 102.0, "Je t'attends, tête de bouclier.")]
     # Noted range 155–170: the cue is 40 s before the tolerance window starts.
-    assert find_anchors(cues, ["ce bébé c'est une connerie"], 155.0, 170.0, S) == []
+    assert find_anchors(cues, ["je t'attends tête de bouclier"], 155.0, 170.0, S) == []
 
 
 def test_anchor_spanning_two_cues():
     cues = [
         Cue(10.0, 11.5, "Je vais te dire,"),
-        Cue(11.6, 13.0, "ce bébé, c'est une connerie."),
+        Cue(11.6, 13.0, "je t'attends, tête de bouclier."),
     ]
-    anchors = find_anchors(cues, ["je vais te dire ce bebe c'est une connerie"], 5.0, 20.0, S)
+    anchors = find_anchors(cues, ["je vais te dire je t'attends tete de bouclier"], 5.0, 20.0, S)
     assert len(anchors) == 1
     assert (anchors[0].start, anchors[0].end) == (10.0, 13.0)
     assert anchors[0].score >= S.score_sure
