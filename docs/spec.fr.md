@@ -23,7 +23,7 @@ Les notes sont prises vite, pendant le film : les timecodes sont approximatifs (
 | Ajustement des coupes | Garde la scène notée, mais cale son début et sa fin sur des limites de phrase à ±15 s près, sans couper un mot, avec les références obligatoirement incluses | faster-whisper ou mlx-whisper | Choisir les bornes exactes de la scène pour qu'elle ait du sens |
 | Abréviation du film | Donne une abréviation courte et stable au film (ex. « DDC » pour Le Dîner de cons), gardée pour tous ses extraits | Aucun | Proposer l'abréviation ; sans Claude, l'outil prend les initiales du titre |
 | Son des extraits | Fondu d'ouverture et de fermeture, son de transition au début et à la fin, normalisation à -16 LUFS et -1 dBTP | ffmpeg | Aucun |
-| Vidéo des extraits | Même découpe que l'audio, écran noir pendant le son de transition | ffmpeg | Aucun |
+| Vidéo des extraits | Même découpe que l'audio, écran noir pendant le son de transition, image du film en fondu depuis et vers le noir en même temps que le son | ffmpeg | Aucun |
 | Index des extraits | Écrit un fichier JSON par film avec chaque extrait, sa référence, sa durée et ses fichiers | Aucun | Aucun |
 
 La commande s'appelle `podcleaner-clips`, avec l'alias court `pclips` ; elle s'installe avec `uv tool install` et se lance depuis n'importe quel dossier. Commandes : `init` (crée le fichier de configuration en posant quelques questions dans la console : dossier des épisodes, dossier des films, son de transition, doublage préféré, Claude), `run` (découpe les extraits d'un fichier de notes), `config` (affiche la configuration), `version`.
@@ -105,7 +105,7 @@ Une nouvelle exécution sur le même film ne réécrit que les extraits ajoutés
 
 ## Hors périmètre, décisions et questions ouvertes
 
-La première version ne fait pas le lecteur en direct, ni les effets de transition vidéo, ni l'incrustation de sous-titres dans les extraits.
+La première version ne fait pas le lecteur en direct, ni d'effets de transition vidéo autres que le fondu au noir (une vidéo de transition est prévue), ni l'incrustation de sous-titres dans les extraits.
 
 | Sujet | Décision |
 | --- | --- |
@@ -119,9 +119,9 @@ La première version ne fait pas le lecteur en direct, ni les effets de transiti
 | Nommage | `{abréviation}-{numéro}-{premiers-mots-de-la-référence}.{format}` |
 | Abréviation | Proposée par Claude, initiales du titre sans Claude, puis figée dans le fichier de notes |
 | Langue | Toujours une piste VF, pour l'audio comme pour la vidéo ; VFF de préférence quand il y a aussi une VFQ (réglable) |
-| Fondus | 0,7 s à l'ouverture et à la fermeture |
+| Fondus | 0,7 s à l'ouverture et à la fermeture, pour le son et l'image (l'image part du noir et y retourne) |
 | Son de transition | Commence juste avant l'extrait ; le fondu d'ouverture se fait pendant sa fin, et le son du film est à 100 % quand la transition est passée. Même chose à l'envers en fin d'extrait |
-| Transition vidéo | Écran noir pendant le son de transition, effets à ajouter plus tard |
+| Transition vidéo | Écran noir pendant le son de transition ; l'image du film apparaît depuis le noir et y retourne, en même temps que le son |
 | Formats de sortie | WAV 48 kHz à -16 LUFS pour l'audio, MP4 H.264 pour la vidéo |
 | Chemins | Fichier de configuration par personne, aucun chemin en dur |
 

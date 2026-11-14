@@ -44,7 +44,7 @@ from podcleaner_clips.media import (
 from podcleaner_clips.naming import clip_basename, film_folder_name, format_tc, title_from_film
 from podcleaner_clips.notes import ClipNote, Notes, read_notes, write_abbreviation
 from podcleaner_clips.render_audio import ClipLayout, render_audio
-from podcleaner_clips.render_video import render_video
+from podcleaner_clips.render_video import VIDEO_RENDER_VERSION, render_video
 from podcleaner_clips.subtitles import Cue, find_anchors, parse_srt
 from podcleaner_clips.transcribe import Transcriber, make_transcriber
 
@@ -55,6 +55,7 @@ _LABELS = {
     RENAMED: "renamed",
     MISSING: "missing file redone",
 }
+_VIDEO_REDONE = "video redone (new picture render)"
 _EXTENSIONS = {"audio": "wav", "video": "mp4"}
 # A clip may end this much after the film's reported duration (rounding of the container).
 _END_SLACK_S = 0.05
@@ -331,7 +332,12 @@ def run(
         for kind in OUTPUT_KINDS:
             target = out_dir / _rel(kind, job.name)
             source = out_dir / entry.files[kind] if kind in entry.files else None
-            if source is not None and source.is_file():
+            outdated = kind == "video" and entry.video_version != VIDEO_RENDER_VERSION
+            if outdated and kind in wanted:
+                job.render.add(kind)  # same cut, the picture is drawn differently now
+                if source is not None and source.is_file() and source != target:
+                    job.renames[kind] = source  # moved, then drawn again under its new name
+            elif source is not None and source.is_file():
                 job.keep.add(kind)
                 if source != target:
                     job.renames[kind] = source
@@ -378,6 +384,11 @@ def run(
                     claude_advice=j.advice,
                     duration_s=layouts[j.note.number].total_s,
                     files={k: _rel(k, j.name) for k in sorted(j.render | j.keep)},
+                    video_version=(
+                        j.action.reuse.video_version
+                        if j.action.reuse is not None and "video" in j.keep
+                        else VIDEO_RENDER_VERSION
+                    ),
                 )
                 for j in jobs
                 if j.error is None and j.cut is not None
@@ -417,10 +428,13 @@ def _summary(
         kind = job.action.kind
         if kind == UNCHANGED and job.renames:
             kind = RENAMED
+        label = _LABELS[kind]
+        if kind in (UNCHANGED, RENAMED) and job.render:  # only the video, drawn again
+            label = _VIDEO_REDONE if kind == UNCHANGED else f"{label}, {_VIDEO_REDONE}"
         echo(
             f"{head}  {format_tc(n.start)} > {format_tc(n.end)}  →  "
             f"{format_tc(job.cut.start)} > {format_tc(job.cut.end)}  "
-            f"{layouts[n.number].total_s:.1f} s  {_LABELS[kind]}"
+            f"{layouts[n.number].total_s:.1f} s  {label}"
         )
         if job.cut.doubt:
             echo(f"    ⚠ {job.cut.doubt}")

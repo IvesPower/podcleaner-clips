@@ -25,7 +25,7 @@ Then `pclips run notes.md`:
 - finds each line in the French subtitles when the film has some, then in the dub with Whisper (only around each clip, never the whole film);
 - moves the start and the end to sentence boundaries within 15 s of your timecodes, never cutting a word, with every noted fragment inside;
 - adds 0.7 s fades and your transition sound before and after the clip, then normalizes to -16 LUFS / -1 dBTP;
-- writes a 48 kHz WAV, an H.264 MP4 (black screen during the transition) and a `clips.json` index of the chosen cuts;
+- writes a 48 kHz WAV, an H.264 MP4 (black screen during the transition, the picture fading in from black and out to black with the sound) and a `clips.json` index of the chosen cuts;
 - on later runs, only redoes the clips you added or changed, and renames the files of clips that moved.
 
 ```

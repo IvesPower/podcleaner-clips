@@ -25,7 +25,7 @@ Ensuite, `pclips run notes.md` :
 - retrouve chaque réplique dans les sous-titres français quand le film en a, puis dans le doublage avec Whisper (seulement autour de chaque extrait, jamais le film entier) ;
 - cale le début et la fin sur des limites de phrase à 15 s au plus de vos timecodes, sans couper un mot, avec tous les fragments notés à l'intérieur ;
 - ajoute des fondus de 0,7 s et votre son de transition avant et après l'extrait, puis normalise à -16 LUFS / -1 dBTP ;
-- écrit un WAV 48 kHz, un MP4 H.264 (écran noir pendant la transition) et un index `clips.json` des coupes retenues ;
+- écrit un WAV 48 kHz, un MP4 H.264 (écran noir pendant la transition, l'image qui apparaît depuis le noir et y retourne en même temps que le son) et un index `clips.json` des coupes retenues ;
 - aux passages suivants, ne refait que les extraits ajoutés ou modifiés, et renomme les fichiers des extraits déplacés.
 
 ```

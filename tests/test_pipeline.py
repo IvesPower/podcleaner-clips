@@ -12,6 +12,7 @@ from podcleaner_clips.errors import ClipsError
 from podcleaner_clips.index import _LEGACY_KEYS as _INDEX_LEGACY_KEYS
 from podcleaner_clips.index import INDEX_NAME, LEGACY_INDEX_NAME
 from podcleaner_clips.pipeline import RunOptions, run
+from podcleaner_clips.render_video import VIDEO_RENDER_VERSION
 
 # Two clips of the 12 s test film.
 NOTES = "file: {film}\n\n0:02 bonjour tout le monde 0:05\n0:07 au revoir 0:09\n"
@@ -301,3 +302,44 @@ def test_legacy_index_and_french_header_are_migrated_without_rerender(setup):
     assert setup.files() == EXPECTED  # clips.json back, extraits.json gone
     assert sum("unchanged" in line for line in setup.lines) == 2
     assert any("fichier: → file:" in line for line in setup.lines)
+
+
+def _drop_video_version(setup) -> None:
+    """Makes the index look written before the video fades (no "video_version")."""
+    data = setup.index()
+    for clip in data["clips"]:
+        clip.pop("video_version")
+    (setup.out / INDEX_NAME).write_text(json.dumps(data), encoding="utf-8")
+
+
+def test_videos_from_before_the_fades_are_redone_alone(setup):
+    setup.run(adjust=False)
+    _drop_video_version(setup)
+    wav = setup.out / "audio" / "TF-01-bonjour-tout-le-monde.wav"
+    mp4 = setup.out / "video" / "TF-01-bonjour-tout-le-monde.mp4"
+    wav_before, mp4_before = wav.stat().st_mtime_ns, mp4.stat().st_ino
+    setup.lines.clear()
+
+    setup.run(adjust=False)
+
+    assert setup.files() == EXPECTED
+    assert wav.stat().st_mtime_ns == wav_before  # the sound is not touched
+    assert mp4.stat().st_ino != mp4_before  # written again (renamed into place)
+    assert sum("video redone" in line for line in setup.lines) == 2
+    assert all(c["video_version"] == VIDEO_RENDER_VERSION for c in setup.index()["clips"])
+
+    setup.lines.clear()
+    setup.run(adjust=False)  # nothing left to do
+    assert sum("unchanged" in line for line in setup.lines) == 2
+
+
+def test_audio_only_run_keeps_an_old_video_as_it_is(setup):
+    setup.run(adjust=False)
+    _drop_video_version(setup)
+    mp4 = setup.out / "video" / "TF-01-bonjour-tout-le-monde.mp4"
+    before = mp4.stat().st_ino
+
+    setup.run(adjust=False, video=False)
+
+    assert mp4.stat().st_ino == before
+    assert all(c["video_version"] == 1 for c in setup.index()["clips"])  # still to redo
