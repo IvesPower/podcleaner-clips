@@ -9,7 +9,7 @@ Nov 6, 2026 · @Julien — révisé le 9 nov. 2026 d'après de vraies notes de v
 
 L'objectif est un outil en ligne de commande qui découpe dans un film les extraits notés pendant le visionnage et les range, prêts à être diffusés en direct pendant l'enregistrement de l'épisode. Nom de travail : podcleaner-clips.
 
-L'outil tourne sur macOS et Windows et sera publié en open source, comme podcleaner-editor. Il reste utilisable sans compte ni clé d'API : Claude choisit l'abréviation du film et affine les coupes, mais l'outil a une solution de repli pour chaque cas.
+L'outil tourne sur macOS et Windows et sera publié en open source, comme podcleaner-editor. Il reste utilisable sans compte ni clé d'API (Claude est joint par un abonnement Claude avec la CLI Claude Code, ou par une clé d'API) : Claude choisit l'abréviation du film et affine les coupes, mais l'outil a une solution de repli pour chaque cas.
 
 Les notes sont prises vite, pendant le film : les timecodes sont approximatifs (une dizaine de secondes d'écart) et la réplique n'est qu'une référence de quelques mots, pas forcément exacte. L'outil doit retrouver la scène et la couper proprement malgré ça.
 
@@ -21,7 +21,7 @@ Les notes sont prises vite, pendant le film : les timecodes sont approximatifs (
 | Choix des pistes | Prend toujours une piste audio VF ; s'il y en a plusieurs (VFF, VFQ), la VFF par défaut (réglable) ; si aucune piste n'est marquée française, prend la première et le signale | ffprobe | Aucun |
 | Repérage des références | Retrouve chaque référence dans la scène : d'abord dans les sous-titres français du film s'il en a, puis dans la transcription Whisper du doublage | ffmpeg (sous-titres), faster-whisper ou mlx-whisper (timestamps par mot), rapidfuzz | Choisir la bonne occurrence quand la référence est approximative ou répétée |
 | Ajustement des coupes | Garde la scène notée, mais cale son début et sa fin sur des limites de phrase à ±15 s près, sans couper un mot, avec les références obligatoirement incluses | faster-whisper ou mlx-whisper | Choisir les bornes exactes de la scène pour qu'elle ait du sens |
-| Abréviation du film | Donne une abréviation courte et stable au film (ex. « DDC » pour Le Dîner de cons), gardée pour tous ses extraits | Aucun | Proposer l'abréviation ; sans clé d'API, l'outil prend les initiales du titre |
+| Abréviation du film | Donne une abréviation courte et stable au film (ex. « DDC » pour Le Dîner de cons), gardée pour tous ses extraits | Aucun | Proposer l'abréviation ; sans Claude, l'outil prend les initiales du titre |
 | Son des extraits | Fondu d'ouverture et de fermeture, son de transition au début et à la fin, normalisation à -16 LUFS et -1 dBTP | ffmpeg | Aucun |
 | Vidéo des extraits | Même découpe que l'audio, écran noir pendant le son de transition | ffmpeg | Aucun |
 | Index des extraits | Écrit un fichier JSON par film avec chaque extrait, sa référence, sa durée et ses fichiers | Aucun | Aucun |
@@ -113,9 +113,9 @@ La première version ne fait pas le lecteur en direct, ni les effets de transiti
 | Référence | Quelques mots de la réplique, approximatifs ; plusieurs fragments séparés par `…`, `...` ou ` - ` |
 | Bornes des extraits | L'extrait reprend la scène notée. Le début et la fin sont calés sur des limites de phrase à ±15 s des timecodes notés, sans couper un mot, et toutes les références sont incluses : mieux vaut un peu de marge qu'une réplique coupée. Références introuvables : timecodes notés gardés (sans couper de mot) et signalés |
 | Repérage | Sous-titres français en texte s'il y en a (hors « forcés »), puis Whisper sur la scène ±15 s ; Whisper seul sinon |
-| Rôle de Claude | Avec une clé, Claude choisit les bornes de chaque extrait à partir de la transcription ; sa réponse est contrôlée. Sans clé, règle simple : limite de phrase la plus proche de chaque timecode noté |
+| Rôle de Claude | Quand Claude est disponible (CLI Claude Code avec un abonnement d'abord, sinon une clé d'API), il choisit les bornes de chaque extrait à partir de la transcription ; sa réponse est contrôlée. Sans Claude, règle simple : limite de phrase la plus proche de chaque timecode noté |
 | Nommage | `{abréviation}-{numéro}-{premiers-mots-de-la-référence}.{format}` |
-| Abréviation | Proposée par Claude, initiales du titre sans clé d'API, puis figée dans le fichier de notes |
+| Abréviation | Proposée par Claude, initiales du titre sans Claude, puis figée dans le fichier de notes |
 | Langue | Toujours une piste VF, pour l'audio comme pour la vidéo ; VFF de préférence quand il y a aussi une VFQ (réglable) |
 | Fondus | 0,7 s à l'ouverture et à la fermeture |
 | Son de transition | Commence juste avant l'extrait ; le fondu d'ouverture se fait pendant sa fin, et le son du film est à 100 % quand la transition est passée. Même chose à l'envers en fin d'extrait |

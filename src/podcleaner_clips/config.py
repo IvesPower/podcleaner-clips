@@ -13,6 +13,7 @@ from podcleaner_clips.errors import ClipsError
 APP_NAME = "podcleaner-clips"
 CONFIG_ENV_VAR = "PODCLEANER_CLIPS_CONFIG"
 DUBS = ("VFF", "VFQ")
+CLAUDE_BACKENDS = ("auto", "cli", "api", "off")
 
 
 @dataclass(frozen=True)
@@ -32,7 +33,8 @@ class Settings:
     fade_s: float = 0.7
     lufs: float = -16.0
     true_peak: float = -1.0
-    claude_enabled: bool = True
+    claude_enabled: bool = True  # false = backend "off" (kept for older files)
+    claude_backend: str = "auto"
     claude_model: str = "claude-haiku-5-5"
     # Not settings: what to tell the user about the file (old key names, …).
     notices: tuple[str, ...] = field(default=(), compare=False)
@@ -55,6 +57,7 @@ _KEYS: dict[tuple[str | None, str], str] = {
     ("audio", "fade_s"): "fade_s",
     ("audio", "lufs"): "lufs",
     ("audio", "true_peak"): "true_peak",
+    ("claude", "backend"): "claude_backend",
     ("claude", "enabled"): "claude_enabled",
     ("claude", "model"): "claude_model",
 }
@@ -127,8 +130,11 @@ _TEMPLATE = """\
 # true_peak = -1.0
 
 [claude]
-# Ask Claude (abbreviation, cuts) when ANTHROPIC_API_KEY is set.
-# enabled = true
+# Who answers when the tool asks Claude (abbreviation, cuts):
+#   "auto": the Claude Code CLI if it is installed and logged in (your Claude
+#           subscription), else the API if ANTHROPIC_API_KEY is set, else no Claude;
+#   "cli":  only the Claude Code CLI;  "api": only the API;  "off": never.
+# backend = "auto"
 # model = "claude-haiku-5-5"
 """
 
@@ -174,6 +180,14 @@ def load_settings(path: Path | None = None) -> Settings:
     if dub not in DUBS:
         raise ClipsError(f'preferred_dub must be "VFF" or "VFQ" ({path}).')
     values["preferred_dub"] = dub
+
+    backend = values.get("claude_backend", "auto").lower()
+    if backend not in CLAUDE_BACKENDS:
+        choices = ", ".join(f'"{b}"' for b in CLAUDE_BACKENDS)
+        raise ClipsError(f"[claude] backend must be one of {choices} ({path}).")
+    if values.get("claude_enabled") is False:
+        backend = "off"
+    values["claude_backend"] = backend
 
     for name in _PATH_FIELDS & values.keys():
         p = Path(values[name]).expanduser()

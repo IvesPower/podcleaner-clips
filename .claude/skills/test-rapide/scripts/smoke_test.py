@@ -143,7 +143,7 @@ def main() -> int:
             # json.dumps quotes like TOML: apostrophes and accents in paths are fine.
             f"episodes_dir = {json.dumps(episodes.as_posix(), ensure_ascii=False)}\n"
             f"transition_sound = {json.dumps(transition.as_posix(), ensure_ascii=False)}\n"
-            "[claude]\nenabled = false\n",
+            '[claude]\nbackend = "off"\n',
             encoding="utf-8",
         )
         notes = root / "notes" / "test film.md"

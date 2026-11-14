@@ -98,7 +98,14 @@ The summary shows, for each clip, the noted and chosen timecodes, the length and
 
 ## Claude, optional
 
-No account is needed. If `ANTHROPIC_API_KEY` is set, Claude suggests the film's abbreviation and chooses the bounds of each clip from the transcription; its answers are checked (within 15 s of your timecodes, every fragment inside) and recorded in `clips.json`. Without a key, or if Claude cannot be reached, the abbreviation is the title's initials and the cut is the sentence boundary closest to each noted timecode. Turn it off with `enabled = false` in `[claude]`.
+No account is needed. When Claude is available, it suggests the film's abbreviation and chooses the bounds of each clip from the transcription; its answers are checked (within 15 s of your timecodes, every fragment inside) and recorded in `clips.json`. Without Claude, or if it cannot be reached, the abbreviation is the title's initials and the cut is the sentence boundary closest to each noted timecode.
+
+The tool reaches Claude in one of two ways, chosen with `backend` in `[claude]`:
+
+- **Your Claude subscription** (Pro or Max), through the [Claude Code](https://claude.com/claude-code) command line: install it, then run `claude auth login` once. This is tried first.
+- **An API key**: set `ANTHROPIC_API_KEY` (billed per use on the Anthropic API).
+
+`backend = "auto"` (the default) uses the subscription if Claude Code is installed and logged in, else the API key if there is one, else no Claude. `"cli"` and `"api"` force one of the two, `"off"` never asks Claude. The first lines of each run say which one answers.
 
 ## Contributing
 

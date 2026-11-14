@@ -47,7 +47,7 @@ class Setup:
         self.config.write_text(
             f'episodes_dir = "{self.episodes.as_posix()}"\n'
             f'transition_sound = "{transition.as_posix()}"\n'
-            "[claude]\nenabled = false\n",
+            '[claude]\nbackend = "off"\n',
             encoding="utf-8",
         )
         self.notes = tmp_path / "notes" / "film.md"
@@ -198,7 +198,7 @@ def test_film_resolved_from_films_dir(tmp_path, test_film, transition_wav):
         f'episodes_dir = "{s.episodes.as_posix()}"\n'
         f'transition_sound = "{transition_wav.as_posix()}"\n'
         f'films_dir = "{test_film.parent.as_posix()}"\n'
-        "[claude]\nenabled = false\n",
+        '[claude]\nbackend = "off"\n',
         encoding="utf-8",
     )
 
@@ -225,7 +225,7 @@ def test_film_option_and_title_from_film_name(tmp_path, transition_wav):
 
 def test_missing_transition_sound_is_an_error(setup):
     setup.config.write_text(
-        f'episodes_dir = "{setup.episodes.as_posix()}"\n[claude]\nenabled = false\n',
+        f'episodes_dir = "{setup.episodes.as_posix()}"\n[claude]\nbackend = "off"\n',
         encoding="utf-8",
     )
     with pytest.raises(ClipsError, match="transition_sound"):
