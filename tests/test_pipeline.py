@@ -343,3 +343,46 @@ def test_audio_only_run_keeps_an_old_video_as_it_is(setup):
 
     assert mp4.stat().st_ino == before
     assert all(c["video_version"] == 1 for c in setup.index()["clips"])  # still to redo
+
+
+def _with_transition_video(setup, video) -> None:
+    text = setup.config.read_text(encoding="utf-8")
+    line = f"transition_video = '{Path(video).as_posix()}'\n"
+    lines = [x for x in text.splitlines(keepends=True) if not x.startswith("transition_video")]
+    setup.config.write_text(line + "".join(lines), encoding="utf-8")
+
+
+def test_changing_the_transition_video_redoes_the_videos_only(
+    setup, transition_mp4, other_transition_mp4
+):
+    _with_transition_video(setup, transition_mp4)
+    setup.run(adjust=False)
+    first = setup.index()["clips"][0]
+    assert first["transition_video_sha"] is not None
+    wav = setup.out / "audio" / "TF-01-bonjour-tout-le-monde.wav"
+    mp4 = setup.out / "video" / "TF-01-bonjour-tout-le-monde.mp4"
+    wav_before, mp4_before = wav.stat().st_mtime_ns, mp4.stat().st_ino
+
+    _with_transition_video(setup, other_transition_mp4)
+    setup.lines.clear()
+    setup.run(adjust=False)
+
+    assert wav.stat().st_mtime_ns == wav_before
+    assert mp4.stat().st_ino != mp4_before
+    assert sum("video redone" in line for line in setup.lines) == 2
+    assert setup.index()["clips"][0]["transition_video_sha"] != first["transition_video_sha"]
+
+
+def test_missing_or_pictureless_transition_video_is_an_error(setup, transition_wav):
+    _with_transition_video(setup, setup.root / "absent.mp4")
+    with pytest.raises(ClipsError, match="Transition video not found"):
+        setup.run(adjust=False)
+    _with_transition_video(setup, transition_wav)
+    with pytest.raises(ClipsError, match="has no picture"):
+        setup.run(adjust=False)
+
+
+def test_transition_video_ignored_without_transition_or_video(setup):
+    _with_transition_video(setup, setup.root / "absent.mp4")  # never opened
+    setup.run(adjust=False, transition=False)
+    setup.run(adjust=False, video=False)

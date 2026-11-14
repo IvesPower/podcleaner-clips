@@ -23,6 +23,7 @@ class Settings:
     episodes_dir: Path
     films_dir: Path | None = None
     transition_sound: Path | None = None
+    transition_video: Path | None = None
     preferred_dub: str = "VFF"
     tolerance_s: float = 15.0
     use_subtitles: bool = True
@@ -47,6 +48,7 @@ _KEYS: dict[tuple[str | None, str], str] = {
     (None, "episodes_dir"): "episodes_dir",
     (None, "films_dir"): "films_dir",
     (None, "transition_sound"): "transition_sound",
+    (None, "transition_video"): "transition_video",
     (None, "preferred_dub"): "preferred_dub",
     ("adjust", "tolerance_s"): "tolerance_s",
     ("adjust", "use_subtitles"): "use_subtitles",
@@ -85,7 +87,7 @@ _LEGACY_KEYS: dict[tuple[str | None, str], tuple[str | None, str]] = {
     ("claude", "modele"): ("claude", "model"),
 }
 _SECTIONS = {section for section, _ in _KEYS if section is not None}
-_PATH_FIELDS = {"episodes_dir", "films_dir", "transition_sound"}
+_PATH_FIELDS = {"episodes_dir", "films_dir", "transition_sound", "transition_video"}
 _FIELD_TYPES = {f.name: f.type for f in fields(Settings)}
 
 _TEMPLATE = """\
@@ -104,6 +106,10 @@ _TEMPLATE = """\
 
 # Sound played before and after each clip (required, unless --no-transition).
 # transition_sound = ""
+
+# Video shown during the transition sound instead of a black screen (optional; its own
+# sound is not used). Cut or looped to the right length, fitted to the film's picture.
+# transition_video = ""
 
 # Preferred French dub when the film has both VFF (France) and VFQ (Quebec): "VFF" or "VFQ".
 # preferred_dub = "VFF"

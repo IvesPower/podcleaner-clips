@@ -25,7 +25,7 @@ Ensuite, `pclips run notes.md` :
 - retrouve chaque réplique dans les sous-titres français quand le film en a, puis dans le doublage avec Whisper (seulement autour de chaque extrait, jamais le film entier) ;
 - cale le début et la fin sur des limites de phrase à 15 s au plus de vos timecodes, sans couper un mot, avec tous les fragments notés à l'intérieur ;
 - ajoute des fondus de 0,7 s et votre son de transition avant et après l'extrait, puis normalise à -16 LUFS / -1 dBTP ;
-- écrit un WAV 48 kHz, un MP4 H.264 (écran noir pendant la transition, l'image qui apparaît depuis le noir et y retourne en même temps que le son) et un index `clips.json` des coupes retenues ;
+- écrit un WAV 48 kHz, un MP4 H.264 (écran noir, ou votre vidéo de transition, pendant la transition, l'image qui apparaît depuis le noir et y retourne en même temps que le son) et un index `clips.json` des coupes retenues ;
 - aux passages suivants, ne refait que les extraits ajoutés ou modifiés, et renomme les fichiers des extraits déplacés.
 
 ```
@@ -69,7 +69,7 @@ Chaque personne a son propre fichier de configuration. Créez-le en répondant �
 pclips init
 ```
 
-Il demande le dossier où ranger les extraits (obligatoire ; il propose de le créer), le dossier de vos films, le son de transition, le doublage préféré (VFF ou VFQ) et s'il faut utiliser Claude, en disant si Claude Code ou une clé d'API a été trouvé. Les chemins peuvent être collés ou glissés dans le terminal. Relancez `pclips init` pour changer vos réponses : les valeurs actuelles sont proposées par défaut, et le fichier n'est remplacé qu'après confirmation.
+Il demande le dossier où ranger les extraits (obligatoire ; il propose de le créer), le dossier de vos films, le son de transition et une vidéo de transition facultative, le doublage préféré (VFF ou VFQ) et s'il faut utiliser Claude, en disant si Claude Code ou une clé d'API a été trouvé. Les chemins peuvent être collés ou glissés dans le terminal. Relancez `pclips init` pour changer vos réponses : les valeurs actuelles sont proposées par défaut, et le fichier n'est remplacé qu'après confirmation.
 
 Le fichier est écrit dans `~/Library/Application Support/podcleaner-clips/config.toml` sur macOS et dans `%LOCALAPPDATA%\podcleaner-clips\config.toml` sur Windows (`--config` ou la variable `PODCLEANER_CLIPS_CONFIG` permettent d'en utiliser un autre ; `pclips config --path` affiche l'emplacement). Les autres réglages (`[adjust]`, `[audio]`…) sont dans le fichier, commentés : retirez le `#` pour en changer un. Vérifiez ce qui est lu avec `pclips config`. Hors terminal, ou avec `pclips init --no-input`, le fichier commenté est écrit sans questions.
 
@@ -92,7 +92,7 @@ pclips run notes.md
 | --- | --- |
 | `--dry-run` | Trouve les coupes et les affiche, sans rien écrire |
 | `--film CHEMIN` | Utilise ce film au lieu de `file:` |
-| `--no-transition` | Fondus seuls, sans son de transition ni écran noir |
+| `--no-transition` | Fondus seuls, sans son de transition, écran noir ni vidéo de transition |
 | `--audio-only` / `--video-only` | Seulement les WAV / seulement les MP4 |
 | `--no-adjust` | Coupe exactement aux timecodes notés (sans sous-titres, Whisper ni Claude) |
 | `--audio-track N` | Utilise la piste audio N (à partir de 0) si les pistes sont mal étiquetées |

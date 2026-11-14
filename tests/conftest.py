@@ -35,3 +35,27 @@ def transition_wav(tmp_path_factory) -> Path:
 def _no_claude_code(monkeypatch):
     """Fast tests never start the real Claude Code CLI, even where it is installed."""
     monkeypatch.setattr("podcleaner_clips.claude.find_cli", lambda: None)
+
+
+def _transition_video(path: Path, colour: str) -> Path:
+    """0.6 s square video in one colour, with its own 1 kHz sound (never to be heard)."""
+    subprocess.run(
+        [
+            "ffmpeg", "-v", "error", "-y",
+            "-f", "lavfi", "-i", f"color=c={colour}:s=120x120:d=0.6:r=30",
+            "-f", "lavfi", "-i", "sine=frequency=1000:duration=0.6",
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", str(path),
+        ],
+        check=True,
+    )  # fmt: skip
+    return path
+
+
+@pytest.fixture(scope="session")
+def transition_mp4(tmp_path_factory) -> Path:
+    return _transition_video(tmp_path_factory.mktemp("tvideo") / "intro.mp4", "red")
+
+
+@pytest.fixture(scope="session")
+def other_transition_mp4(tmp_path_factory) -> Path:
+    return _transition_video(tmp_path_factory.mktemp("tvideo2") / "intro.mp4", "blue")

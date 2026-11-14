@@ -105,6 +105,30 @@ def _ask_transition_sound(current: Path | None) -> Path | None:
         typer.echo(problem)
 
 
+def _video_problem(path: Path) -> str | None:
+    if not path.is_file():
+        return f"No file at {path}."
+    try:
+        info = probe(path)
+    except ClipsError as exc:
+        return str(exc)
+    return None if info.video is not None else f"{path.name} has no picture."
+
+
+def _ask_transition_video(current: Path | None) -> Path | None:
+    while True:
+        answer = _ask_optional(
+            "Video shown during the transition sound, instead of a black screen", current
+        )
+        if answer is None:
+            return None
+        path = _absolute(answer)
+        problem = _video_problem(path)
+        if problem is None:
+            return path
+        typer.echo(problem)
+
+
 def _ask_dub(current: str) -> str:
     while True:
         answer = typer.prompt(
@@ -149,6 +173,11 @@ def run_wizard(path: Path) -> None:
     values["episodes_dir"] = _ask_episodes_dir(defaults.get("episodes_dir"))
     values["films_dir"] = _ask_films_dir(defaults.get("films_dir"))
     values["transition_sound"] = _ask_transition_sound(defaults.get("transition_sound"))
+    values["transition_video"] = (
+        _ask_transition_video(defaults.get("transition_video"))
+        if values["transition_sound"] is not None
+        else None
+    )
     values["preferred_dub"] = _ask_dub(defaults["preferred_dub"])
     typer.echo("")
     backend = "off" if defaults.get("claude_enabled") is False else defaults["claude_backend"]
