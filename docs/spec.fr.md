@@ -26,7 +26,7 @@ Les notes sont prises vite, pendant le film : les timecodes sont approximatifs (
 | Vidéo des extraits | Même découpe que l'audio, écran noir pendant le son de transition | ffmpeg | Aucun |
 | Index des extraits | Écrit un fichier JSON par film avec chaque extrait, sa référence, sa durée et ses fichiers | Aucun | Aucun |
 
-La commande s'appelle `podcleaner-clips`, avec l'alias court `pclips` ; elle s'installe avec `uv tool install` et se lance depuis n'importe quel dossier. Commandes : `init` (crée le fichier de configuration), `run` (découpe les extraits d'un fichier de notes), `config` (affiche la configuration), `version`.
+La commande s'appelle `podcleaner-clips`, avec l'alias court `pclips` ; elle s'installe avec `uv tool install` et se lance depuis n'importe quel dossier. Commandes : `init` (crée le fichier de configuration en posant quelques questions dans la console : dossier des épisodes, dossier des films, son de transition, doublage préféré, Claude), `run` (découpe les extraits d'un fichier de notes), `config` (affiche la configuration), `version`.
 
 Options de la commande (`run`) :
 

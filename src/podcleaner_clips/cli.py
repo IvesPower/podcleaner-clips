@@ -43,10 +43,25 @@ def _root(
         typer.echo(ctx.get_help())
 
 
+def _stdin_is_tty() -> bool:
+    return sys.stdin.isatty()
+
+
 @app.command("init")
-def init_command(config_path: ConfigOption = None) -> None:
-    """Create your configuration file."""
+def init_command(
+    config_path: ConfigOption = None,
+    no_input: Annotated[
+        bool,
+        typer.Option("--no-input", help="Ask nothing: write the commented file to fill in."),
+    ] = False,
+) -> None:
+    """Create your configuration file by answering a few questions."""
     path = config.resolve_config_path(config_path)
+    if not no_input and _stdin_is_tty():
+        from podcleaner_clips.wizard import run_wizard
+
+        run_wizard(path)
+        return
     config.write_template(path)
     typer.echo(f"Configuration file created: {path}")
     typer.echo("Open it and set at least episodes_dir and transition_sound.")
@@ -91,7 +106,7 @@ def config_show(config_path: ConfigOption = None) -> None:
 
 @config_app.command("init", hidden=True)
 def config_init(config_path: ConfigOption = None) -> None:
-    init_command(config_path)
+    init_command(config_path, no_input=False)
 
 
 @app.command("run")

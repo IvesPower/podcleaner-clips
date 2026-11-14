@@ -1,8 +1,9 @@
 """Per-person configuration: a TOML file (French keys of version 0.1.0 are still read)."""
 
 import os
+import re
 import tomllib
-from dataclasses import dataclass, field, fields
+from dataclasses import MISSING, asdict, dataclass, field, fields
 from pathlib import Path
 from typing import Any
 
@@ -241,6 +242,61 @@ def _set(
     values[name] = value
 
 
+_COMMENTED_KEY = re.compile(r"^# (?P<key>\w+) = ")
+_SECTION_LINE = re.compile(r"^\[(?P<section>\w+)\]$")
+DEFAULTS = {f.name: f.default for f in fields(Settings) if f.default is not MISSING}
+
+
+def _toml_value(value: Any) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int | float):
+        return repr(value)
+    text = str(value)
+    if "'" not in text and "\n" not in text:
+        return f"'{text}'"  # literal string: a Windows \ stays a \
+    escaped = text.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+    return f'"{escaped}"'
+
+
+def settings_values(settings: Settings) -> dict[str, Any]:
+    """The settings as {field: value}, ready for `render_config`."""
+    values = asdict(settings)
+    values.pop("notices")
+    return values
+
+
+def render_config(values: dict[str, Any]) -> str:
+    """The commented template with every given value that is not the default filled in."""
+    if values.get("claude_enabled") is False:
+        values = {**values, "claude_backend": "off"}
+    lines = []
+    section = None
+    for line in _TEMPLATE.splitlines():
+        header = _SECTION_LINE.match(line)
+        if header:
+            section = header["section"]
+        commented = _COMMENTED_KEY.match(line)
+        if commented:
+            name = _KEYS.get((section, commented["key"]))
+            value = values.get(name) if name else None
+            if value is not None and (name not in DEFAULTS or value != DEFAULTS[name]):
+                line = f"{commented['key']} = {_toml_value(value)}"
+        lines.append(line)
+    return "\n".join(lines) + "\n"
+
+
+def write_config(path: Path, text: str) -> None:
+    """Writes next to the target first, then renames: an interrupted write leaves no half file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    part = path.with_name(f".{path.name}.part")
+    try:
+        part.write_text(text, encoding="utf-8")
+        os.replace(part, path)
+    finally:
+        part.unlink(missing_ok=True)
+
+
 def write_template(path: Path) -> None:
     if path.exists():
         raise ClipsError(f"Configuration file already exists: {path}")
@@ -252,6 +308,8 @@ def describe(settings: Settings) -> list[tuple[str, str]]:
     """(TOML key, display value) pairs, in file order."""
     rows = []
     for (section, key), name in _KEYS.items():
+        if name == "claude_enabled":  # older switch, shown through backend
+            continue
         value = getattr(settings, name)
         label = f"{section}.{key}" if section else key
         if value is None:
