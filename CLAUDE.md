@@ -45,9 +45,9 @@ Skills du projet : `test-rapide` (test de bout en bout sur un film généré, av
 | Abréviation | Proposée par Claude, initiales du titre sans Claude, puis figée dans le fichier de notes |
 | Nommage | `{abréviation}-{numéro}-{premiers-mots-de-la-référence}.{format}` |
 | Fondus | 0,7 s à l'ouverture et à la fermeture, pour le son et l'image (fondu depuis et vers le noir) |
-| Son de transition | Commence juste avant l'extrait ; le fondu d'ouverture se fait pendant sa fin ; même chose à l'envers en fin d'extrait |
+| Son de transition | Commence juste avant l'extrait ; le fondu d'ouverture se fait pendant sa fin ; même chose à l'envers en fin d'extrait, après une pause de `pad_after_s` (0,5 s) qui suit le dernier mot (sauf si le mot suivant arrive avant) |
 | Transition vidéo | Écran noir pendant le son de transition, ou `transition_video` (muette, bouclée/coupée, cadrée avec bandes noires, fondu par le noir avec le film) ; l'image du film part du noir et y retourne en même temps que le son. Son empreinte est notée par extrait (`transition_video_sha`) : la changer ne refait que les MP4 |
-| Sorties | `{episodes_dir}/{nom-film}/audio/` (WAV 48 kHz : son du film à `lufs` -16, son de transition à `transition_lufs` -22, réglables aussi par `--lufs` / `--transition-lufs` ; -1 dBTP), `…/video/` (MP4 H.264 + AAC), `…/clips.json` |
+| Sorties | `{episodes_dir}/{nom-film}/audio/` (WAV 48 kHz : son du film à `lufs` -16, son de transition à `transition_lufs` -19, réglables aussi par `--lufs` / `--transition-lufs` ; -1 dBTP), `…/video/` (MP4 H.264 + AAC), `…/clips.json` |
 | Relance | Ne réécrit que les extraits ajoutés ou modifiés |
 | Chemins | Fichier de configuration par personne, aucun chemin en dur |
 | Hors périmètre v1 | Lecteur en direct, effets de transition vidéo autres que le fondu au noir et la vidéo de transition, sous-titres |

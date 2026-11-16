@@ -85,7 +85,7 @@ def test_scene_kept_with_short_reference():
     cut = decision.cut
     # Start: sentence start closest to 27:15 (27:14); end: sentence end closest to 27:37.
     assert cut.start == pytest.approx(1634.0 - S.pad_before_s)
-    assert cut.end == pytest.approx(end_of_sentence_at(SHIELD, 1655.0) + S.pad_after_s)
+    assert cut.end == pytest.approx(end_of_sentence_at(SHIELD, 1655.0) + S.pad_after_s + S.fade_s)
     assert cut.method == "whisper" and cut.doubt is None
     assert cut.score is not None and cut.score >= S.score_sure
     assert SHIELD[decision.first_word].start == pytest.approx(1634.0)
@@ -132,7 +132,7 @@ def test_end_extended_to_include_late_fragment():
     )
     decision = adjust_cut(words, ["je cherche mes clés de voiture"], [], 100.0, 146.0, S)
     fragment_end = end_of_sentence_at(words, 150.5)
-    assert decision.cut.end == pytest.approx(fragment_end + S.pad_after_s)
+    assert decision.cut.end == pytest.approx(fragment_end + S.pad_after_s + S.fade_s)
 
 
 def test_misspelled_reference_found():
@@ -180,7 +180,7 @@ def test_cut_from_words_margins():
     words = scene((10.0, "Un deux."), (20.0, "Trois quatre."), (30.0, "Cinq."))
     cut = cut_from_words(words, 2, 3, S)
     assert cut.start == pytest.approx(20.0 - S.pad_before_s)
-    assert cut.end == pytest.approx(20.0 + STEP + LENGTH + S.pad_after_s)
+    assert cut.end == pytest.approx(20.0 + STEP + LENGTH + S.pad_after_s + S.fade_s)
     first = cut_from_words(lay(0.05, "Début du film."), 0, 2, S)
     assert first.start == 0.0  # never before the start of the film
 
@@ -251,3 +251,14 @@ def test_bounds_ok_accepts_a_clip_tighter_than_the_notes():
 def test_bounds_ok_without_matches():
     assert bounds_ok(SHIELD, 3, 8, [None], SHIELD[3].start, SHIELD[8].end, S)
     assert isinstance(Match("x", 0, 1, 90.0), Match)
+
+
+def test_fade_out_starts_after_a_pause_following_the_last_word():
+    words = [Word("Bien.", 10.0, 10.4), Word("Suite", 14.0, 14.3)]
+    cut = cut_from_words(words, 0, 0, S)
+    assert cut.end - S.fade_s == pytest.approx(10.4 + S.pad_after_s)
+
+
+def test_end_never_reaches_into_the_next_word():
+    words = [Word("Bien.", 10.0, 10.4), Word("Suite", 10.8, 11.1)]
+    assert cut_from_words(words, 0, 0, S).end == pytest.approx(10.8)

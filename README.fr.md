@@ -24,7 +24,7 @@ Ensuite, `pclips run notes.md` :
 - choisit la piste en version française (VF), celle de France (VFF) quand il y a aussi une version québécoise (VFQ) ; prévient si aucune piste n'est marquée française ;
 - retrouve chaque réplique dans les sous-titres français quand le film en a, puis dans le doublage avec Whisper (seulement autour de chaque extrait, jamais le film entier) ;
 - cale le début et la fin sur des limites de phrase, sans couper un mot, avec tous les fragments notés à l'intérieur (avec Claude : un extrait centré sur la réplique notée, avec juste le contexte nécessaire pour la comprendre et la réaction qui suit ; sans Claude : les limites de phrase les plus proches de vos timecodes, à 15 s au plus) ;
-- ajoute des fondus de 0,7 s et votre son de transition avant et après l'extrait, le son du film à -16 LUFS et le son de transition à -22 LUFS (réglables), jamais au-dessus de -1 dBTP ;
+- ajoute des fondus de 0,7 s et votre son de transition avant et après l'extrait (après une pause de 0,5 s qui suit le dernier mot, `pad_after_s`), le son du film à -16 LUFS et le son de transition à -19 LUFS (réglables), jamais au-dessus de -1 dBTP ;
 - écrit un WAV 48 kHz, un MP4 H.264 (écran noir, ou votre vidéo de transition, pendant la transition, l'image qui apparaît depuis le noir et y retourne en même temps que le son) et un index `clips.json` des coupes retenues ;
 - aux passages suivants, ne refait que les extraits ajoutés ou modifiés, et renomme les fichiers des extraits déplacés.
 

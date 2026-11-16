@@ -32,10 +32,10 @@ def test_defaults_applied(tmp_path):
     assert s.use_subtitles is True
     assert (s.score_found, s.score_sure) == (70, 85)
     assert s.sentence_gap_s == 0.6
-    assert (s.pad_before_s, s.pad_after_s) == (0.10, 0.25)
+    assert (s.pad_before_s, s.pad_after_s) == (0.10, 0.5)
     assert s.whisper_model == "large-v3-turbo"
     assert s.fade_s == 0.7
-    assert (s.lufs, s.transition_lufs, s.true_peak) == (-16.0, -22.0, -1.0)
+    assert (s.lufs, s.transition_lufs, s.true_peak) == (-16.0, -19.0, -1.0)
     assert s.claude_enabled is True
     assert s.claude_model == "claude-sonnet-5-5"
 
