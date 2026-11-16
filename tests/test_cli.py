@@ -12,7 +12,7 @@ from podcleaner_clips.cli import app
 def test_version_command_prints_version():
     result = CliRunner().invoke(app, ["version"])
     assert result.exit_code == 0
-    assert "0.1.0" in result.output
+    assert "1.0.0" in result.output
 
 
 def test_unknown_command_is_a_usage_error_without_traceback():
@@ -52,7 +52,7 @@ def test_clips_error_exits_2_with_message():
 def test_version_option():
     result = CliRunner().invoke(app, ["--version"])
     assert result.exit_code == 0
-    assert result.output.strip() == "0.1.0"
+    assert result.output.strip() == "1.0.0"
 
 
 def test_command_alone_shows_help_and_exits_0():

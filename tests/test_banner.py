@@ -48,7 +48,7 @@ def test_command_alone_shows_the_banner_then_the_help(terminal):
     result = CliRunner().invoke(app, [])
     assert result.exit_code == 0
     assert TOP_LINE.rstrip() in result.output
-    assert "v0.1.0" in result.output
+    assert "v1.0.0" in result.output
     assert result.output.index(TOP_LINE.rstrip()) < result.output.index("Usage")
 
 
@@ -86,7 +86,7 @@ def test_plain_title_when_narrow_or_no_blocks(terminal, monkeypatch, narrow, can
     monkeypatch.setattr(banner, "_can_print", lambda chars: can_print)
     result = CliRunner().invoke(app, [])
     assert TOP_LINE.rstrip() not in result.output
-    assert "podcleaner-clips 0.1.0 - cut the clips noted while watching" in result.output
+    assert "podcleaner-clips 1.0.0 - cut the clips noted while watching" in result.output
 
 
 def test_can_print_checks_the_encoding(monkeypatch):

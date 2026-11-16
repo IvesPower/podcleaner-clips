@@ -1,6 +1,6 @@
 [project]
 name = "podcleaner-clips"
-version = "0.1.0"
+version = "1.0.0"
 description = "Cut movie clips noted while watching, ready to play live during a podcast recording."
 readme = "README.md"
 license = "MIT"
