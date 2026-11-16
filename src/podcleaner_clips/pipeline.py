@@ -172,6 +172,7 @@ def _render_settings(s: Settings, film: Path) -> dict:
         "sentence_gap_s": s.sentence_gap_s,
         "pad_before_s": s.pad_before_s,
         "pad_after_s": s.pad_after_s,
+        "end_pause": 1,  # pause after the last word even when the next line follows soon
         "whisper_model": s.whisper_model,
     }
 
@@ -376,7 +377,7 @@ def run(
                 job.render.add(kind)
 
     layouts = {
-        job.note.number: ClipLayout(job.cut.start, job.cut.end, s.fade_s, transition_s)
+        job.note.number: ClipLayout.for_cut(job.cut, s.fade_s, transition_s, s.pad_after_s)
         for job in jobs
         if job.cut is not None and job.error is None
     }

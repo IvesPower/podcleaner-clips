@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 from make_test_film import make_test_film
 
+from podcleaner_clips.adjust import Cut
 from podcleaner_clips.config import Settings
 from podcleaner_clips.errors import ClipsError
 from podcleaner_clips.media import AudioTrack, probe
@@ -155,3 +156,26 @@ def test_transition_and_film_have_their_own_loudness(test_film, transition_wav, 
     assert rms_db(a[intro]) - rms_db(b[intro]) == pytest.approx(10.0, abs=1.0)
     assert rms_db(a[middle]) == pytest.approx(rms_db(b[middle]), abs=0.5)
     assert measure_loudness(quiet)[1] <= -0.9
+
+
+def test_layout_for_a_cut_with_room_after_the_last_word():
+    # Last word ends at 10.0, the cut keeps 0.5 s of pause then the 0.7 s fade.
+    lay = ClipLayout.for_cut(Cut(2.0, 11.2, "whisper", None, None, 10.0), 0.7, 0.6, 0.5)
+    assert lay.fade_out == pytest.approx(0.7)
+    assert lay.outro_offset == pytest.approx(8.5)  # last word (8.0 into the film) + 0.5
+
+
+def test_layout_when_the_next_line_follows_soon():
+    """The next word starts 0.44 s after the last one: the film stops before it, the fade
+    starts after the last word, and the transition still waits for the pause."""
+    lay = ClipLayout.for_cut(Cut(40.26, 51.56, "claude", None, None, 51.12), 0.7, 0.6, 0.5)
+    assert lay.fade_out == pytest.approx(0.44)
+    assert lay.outro_offset == pytest.approx(51.12 + 0.5 - 40.26)
+    assert lay.total_s == pytest.approx(lay.outro_offset + 0.6)
+    graph = audio_filter(lay, with_transition=True)
+    assert "afade=t=out:st=10.86:d=0.44" in graph
+
+
+def test_layout_without_words_is_unchanged():
+    lay = ClipLayout.for_cut(Cut(2.0, 8.0, "notes", None, None), 0.7, 1.5, 0.5)
+    assert lay == ClipLayout(2.0, 8.0, 0.7, 1.5)

@@ -255,6 +255,7 @@ def test_index_roundtrip_utf8(tmp_path):
         "method": "whisper",
         "score": 96.2,
         "doubt": None,
+        "speech_end": None,
     }
     assert first["files"] == {"audio": "audio/AB-01.wav", "video": "video/AB-01.mp4"}
     assert [p.name for p in path.parent.iterdir()] == [INDEX_NAME]  # no temporary file left

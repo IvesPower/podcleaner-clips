@@ -217,6 +217,7 @@ def _clip_to_json(c: ClipEntry) -> dict[str, Any]:
             "method": c.cut.method,
             "score": c.cut.score,
             "doubt": c.cut.doubt,
+            "speech_end": None if c.cut.speech_end is None else format_tc(c.cut.speech_end),
         },
         "claude_advice": _advice_to_json(c.claude_advice) if c.claude_advice else None,
         "duration_s": round(c.duration_s, 3),
@@ -236,7 +237,12 @@ def _clip_from_json(d: dict[str, Any]) -> ClipEntry:
         noted_start=parse_tc(d["noted"]["start"]),
         noted_end=parse_tc(d["noted"]["end"]),
         cut=Cut(
-            parse_tc(cut["start"]), parse_tc(cut["end"]), cut["method"], cut["score"], cut["doubt"]
+            parse_tc(cut["start"]),
+            parse_tc(cut["end"]),
+            cut["method"],
+            cut["score"],
+            cut["doubt"],
+            parse_tc(cut["speech_end"]) if cut.get("speech_end") else None,
         ),
         claude_advice=_advice_from_json(d["claude_advice"]) if d["claude_advice"] else None,
         duration_s=float(d["duration_s"]),
