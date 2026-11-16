@@ -4,14 +4,14 @@ import glob
 import os
 import tempfile
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 import typer
 
 from podcleaner_clips.adjust import Cut, adjust_cut
 from podcleaner_clips.claude import ClaudeAdvice, ClaudeClient
-from podcleaner_clips.config import Settings, load_settings
+from podcleaner_clips.config import LUFS_MAX, LUFS_MIN, Settings, check_lufs, load_settings
 from podcleaner_clips.errors import ClipsError
 from podcleaner_clips.index import (
     CHANGED,
@@ -72,6 +72,8 @@ class RunOptions:
     dry_run: bool = False
     audio_track: int | None = None
     config: Path | None = None
+    lufs: float | None = None  # replaces [audio] lufs
+    transition_lufs: float | None = None  # replaces [audio] transition_lufs
 
 
 @dataclass
@@ -161,6 +163,7 @@ def _render_settings(s: Settings, film: Path) -> dict:
         "film": film.name,
         "fade_s": s.fade_s,
         "lufs": s.lufs,
+        "transition_lufs": s.transition_lufs,
         "true_peak": s.true_peak,
         "tolerance_s": s.tolerance_s,
         "use_subtitles": s.use_subtitles,
@@ -266,6 +269,17 @@ def run(
         raise ClipsError("--audio-only and --video-only cannot be used together.")
     require_ffmpeg()
     s = load_settings(opts.config)
+    overrides = {
+        name: value
+        for name, value in (("lufs", opts.lufs), ("transition_lufs", opts.transition_lufs))
+        if value is not None
+    }
+    for name, value in overrides.items():
+        if not check_lufs(value):
+            raise ClipsError(
+                f"--{name.replace('_', '-')} must be between {LUFS_MIN:g} and {LUFS_MAX:g}."
+            )
+    s = replace(s, **overrides)
     notes_path = Path(opts.notes)
     notes = read_notes(notes_path)
     if not notes.clips and not notes.errors:

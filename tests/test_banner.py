@@ -21,15 +21,27 @@ def terminal(monkeypatch):
 
 def test_pixel_title_fits_in_80_columns():
     lines = banner.pixel_lines()
-    assert len(lines) == 3
+    assert len(lines) == 4
     assert len({len(line) for line in lines}) == 1
     assert len(lines[0]) <= 80
     assert set("".join(lines)) <= set("█▀▄ ")
 
 
-def test_gradient_ends():
-    assert banner._colour(0.0) == "#00c8ff"
-    assert banner._colour(1.0) == "#ff50aa"
+def test_badge_has_a_margin_all_around():
+    lines = banner.pixel_lines()
+    assert lines[0][0] == lines[0][-1] == " "
+    assert all(line[0] == " " and line[-1] == " " for line in lines)
+    assert set(lines[-1]) == {" "}
+
+
+def test_podcast_colours(terminal, monkeypatch):
+    monkeypatch.delenv("NO_COLOR")
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    monkeypatch.setenv("COLORTERM", "truecolor")
+    output = CliRunner().invoke(app, []).output
+    assert "\x1b[" in output
+    # Rich writes truecolor as r;g;b: cream on rust.
+    assert "251;242;241" in output and "148;56;12" in output
 
 
 def test_command_alone_shows_the_banner_then_the_help(terminal):

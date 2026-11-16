@@ -1,5 +1,6 @@
 """Audio clip rendering: cut, fades, transition sound, loudness normalization (ffmpeg)."""
 
+import functools
 import json
 import math
 import os
@@ -57,18 +58,32 @@ def ffmpeg_seconds(seconds: float) -> str:
     return f"{seconds:.3f}".rstrip("0").rstrip(".")
 
 
-def audio_filter(layout: ClipLayout, with_transition: bool, track: int = 0) -> str:
-    """The -filter_complex graph: input 0 is the film (already cut), 1 the transition sound.
-
-    The result is labelled [mix].
-    """
+def film_chain(layout: ClipLayout, track: int = 0) -> str:
+    """The film sound of the clip (input 0, already cut): 48 kHz stereo, with its fades."""
     clip = layout.clip_s
     fade = min(layout.fade_s, clip / 2)
     d, out_at = ffmpeg_seconds(fade), ffmpeg_seconds(clip - fade)
-    film = (
+    return (
         f"[0:a:{track}]asetpts=PTS-STARTPTS,{_FORMAT},"
         f"afade=t=in:d={d},afade=t=out:st={out_at}:d={d}"
     )
+
+
+def audio_filter(
+    layout: ClipLayout,
+    with_transition: bool,
+    track: int = 0,
+    film_norm: str | None = None,
+    transition_gain_db: float = 0.0,
+) -> str:
+    """The -filter_complex graph: input 0 is the film (already cut), 1 the transition sound.
+
+    `film_norm` brings the film sound to its loudness, `transition_gain_db` the transition
+    sound to its own, before they are mixed. The result is labelled [mix].
+    """
+    film = film_chain(layout, track)
+    if film_norm:
+        film += f",{film_norm},{_FORMAT}"  # loudnorm works at 192 kHz: back to 48 kHz
     # adelay leaves its silence without timestamps (ffmpeg 7.1), which then cuts the mix
     # short: timestamps are rebuilt from the sample count after it.
     delay = "all=1,asetpts=N/SR/TB"
@@ -76,13 +91,24 @@ def audio_filter(layout: ClipLayout, with_transition: bool, track: int = 0) -> s
     end = f"apad=whole_dur={total},atrim=end={total}[mix]"
     if not with_transition:
         return f"{film},{end}"
+    gain = f"volume={transition_gain_db:.2f}dB,"
     return ";".join(
         [
             f"{film},adelay=delays={_ms(layout.film_offset)}:{delay}[film]",
-            f"[1:a]asetpts=PTS-STARTPTS,{_FORMAT},asplit=2[intro][outro_raw]",
+            f"[1:a]asetpts=PTS-STARTPTS,{_FORMAT},{gain}asplit=2[intro][outro_raw]",
             f"[outro_raw]adelay=delays={_ms(layout.outro_offset)}:{delay}[outro]",
             f"[film][intro][outro]amix=inputs=3:normalize=0:duration=longest,{end}",
         ]
+    )
+
+
+def peak_limiter(true_peak: float) -> str:
+    """Keeps the mix under `true_peak` dBTP (4× oversampling to catch the peaks between samples)."""
+    limit = min(1.0, max(0.0625, 10 ** (true_peak / 20)))
+    return (
+        f"aresample={4 * SAMPLE_RATE},"
+        f"alimiter=limit={limit:.4f}:attack=1:release=50:level=0:latency=1,"
+        f"aresample={SAMPLE_RATE}"
     )
 
 
@@ -124,28 +150,13 @@ def _last_json(log: str) -> dict:
     return json.loads(log[start : end + 1])
 
 
-def render_audio(
-    film: Path,
-    track: AudioTrack,
-    layout: ClipLayout,
-    transition: Path | None,
-    out_wav: Path,
-    s: Settings,
-) -> None:
-    """Writes the clip as a 48 kHz 24-bit stereo WAV at the target loudness."""
-    if not Path(film).is_file():
-        raise ClipsError(f"Film not found: {film}")
-    with_transition = transition is not None and layout.transition_s is not None
-    graph = audio_filter(layout, with_transition, track.index)
-    inputs = _inputs(film, layout, transition if with_transition else None)
-    target = f"I={s.lufs:g}:TP={s.true_peak:g}:LRA={_LRA}"
-
-    # Pass 1: measure the mixed clip.
+def _loudnorm_measure(args: list[str], chain: str, target: str) -> dict[str, float] | None:
+    """loudnorm's first-pass measurement of `chain`; None for silence (nothing to measure)."""
     log = run_ffmpeg(
         [
-            *inputs,
+            *args,
             "-filter_complex",
-            f"{graph};[mix]loudnorm={target}:print_format=json[out]",
+            f"{chain},loudnorm={target}:print_format=json[out]",
             "-map",
             "[out]",
             "-f",
@@ -154,22 +165,58 @@ def render_audio(
         ]
     )
     m = _last_json(log)
+    keys = ("input_i", "input_tp", "input_lra", "input_thresh", "target_offset")
     try:
-        measured = {k: float(m[k]) for k in ("input_i", "input_tp", "input_lra", "input_thresh")}
-        offset = float(m["target_offset"])
+        measured = {k: float(m[k]) for k in keys}
     except (KeyError, ValueError) as exc:
         raise ClipsError(f"Unexpected loudness measurement from ffmpeg: {m}") from exc
+    return measured if all(math.isfinite(v) for v in measured.values()) else None
 
-    if all(math.isfinite(v) for v in measured.values()):
-        norm = (
-            f"loudnorm={target}:measured_I={measured['input_i']}:"
-            f"measured_TP={measured['input_tp']}:measured_LRA={measured['input_lra']}:"
-            f"measured_thresh={measured['input_thresh']}:offset={offset}:linear=true"
+
+@functools.lru_cache(maxsize=8)
+def _transition_gain(path: str, mtime_ns: int, size: int, target_lufs: float) -> float:
+    del mtime_ns, size  # part of the cache key only: a changed file is measured again
+    measured = _loudnorm_measure(["-i", path], "[0:a]anull", f"I={target_lufs:g}")
+    return 0.0 if measured is None else target_lufs - measured["input_i"]
+
+
+def transition_gain_db(transition: Path, target_lufs: float) -> float:
+    """Gain (dB) that brings the transition sound to `target_lufs` (0 for a too-short sound)."""
+    stat = Path(transition).stat()
+    return _transition_gain(str(transition), stat.st_mtime_ns, stat.st_size, target_lufs)
+
+
+def render_audio(
+    film: Path,
+    track: AudioTrack,
+    layout: ClipLayout,
+    transition: Path | None,
+    out_wav: Path,
+    s: Settings,
+) -> None:
+    """Writes the clip as a 48 kHz 24-bit stereo WAV.
+
+    The film sound is brought to `s.lufs` and the transition sound to `s.transition_lufs`,
+    each on its own, then the mix is kept under `s.true_peak`.
+    """
+    if not Path(film).is_file():
+        raise ClipsError(f"Film not found: {film}")
+    with_transition = transition is not None and layout.transition_s is not None
+    inputs = _inputs(film, layout, transition if with_transition else None)
+    target = f"I={s.lufs:g}:TP={s.true_peak:g}:LRA={_LRA}"
+
+    # Pass 1: measure the film sound of the clip alone (with its fades).
+    m = _loudnorm_measure(_inputs(film, layout, None), film_chain(layout, track.index), target)
+    film_norm = None
+    if m is not None:  # silence: nothing to normalize
+        film_norm = (
+            f"loudnorm={target}:measured_I={m['input_i']}:measured_TP={m['input_tp']}:"
+            f"measured_LRA={m['input_lra']}:measured_thresh={m['input_thresh']}:"
+            f"offset={m['target_offset']}:linear=true"
         )
-        # loudnorm works at 192 kHz: come back to 48 kHz.
-        final = f"{graph};[mix]{norm},aresample={SAMPLE_RATE}[out]"
-    else:  # silence: nothing to normalize
-        final = f"{graph};[mix]anull[out]"
+    gain = transition_gain_db(transition, s.transition_lufs) if with_transition else 0.0
+    graph = audio_filter(layout, with_transition, track.index, film_norm, gain)
+    final = f"{graph};[mix]{peak_limiter(s.true_peak)}[out]"
 
     # Pass 2: write next to the target, then rename, so no half-written WAV is left.
     out_wav = Path(out_wav)

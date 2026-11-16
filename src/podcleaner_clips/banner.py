@@ -30,28 +30,22 @@ _FONT = {
     "s": ("###", "#..", "###", "..#", "###"),
 }
 _HALF_BLOCKS = {(True, True): "█", (True, False): "▀", (False, True): "▄", (False, False): " "}
-# Gradient from the first column to the last (cyan → violet → pink).
-_GRADIENT = ((0, 200, 255), (140, 90, 255), (255, 80, 170))
+# The podcast's colours: cream letters on a rust badge (readable on dark and light terminals).
+RUST = "#94380c"
+CREAM = "#fbf2f1"
+_BADGE_STYLE = f"bold {CREAM} on {RUST}"
 
 
 def pixel_lines(text: str = NAME) -> list[str]:
-    """`text` drawn with the pixel font: 3 lines of half blocks."""
-    rows = ["." + ".".join(_FONT[ch][r] for ch in text) for r in range(5)]
-    rows.append("." * len(rows[0]))  # even number of pixel rows
+    """`text` drawn with the pixel font on a badge: 4 lines of half blocks, one pixel of margin."""
+    letters = [".".join(_FONT[ch][r] for ch in text) for r in range(5)]
+    blank = "." * len(letters[0])
+    # One pixel row above, two below: half blocks need an even number of rows.
+    rows = [f".{row}." for row in [blank, *letters, blank, blank]]
     return [
         "".join(_HALF_BLOCKS[(top == "#", bottom == "#")] for top, bottom in zip(t, b, strict=True))
         for t, b in zip(rows[::2], rows[1::2], strict=True)
     ]
-
-
-def _colour(position: float) -> str:
-    """Hex colour at `position` (0 to 1) along the gradient."""
-    segments = len(_GRADIENT) - 1
-    i = min(int(position * segments), segments - 1)
-    local = position * segments - i
-    start, end = _GRADIENT[i], _GRADIENT[i + 1]
-    r, g, b = (round(a + (z - a) * local) for a, z in zip(start, end, strict=True))
-    return f"#{r:02x}{g:02x}{b:02x}"
 
 
 def _stdout_is_tty() -> bool:
@@ -85,9 +79,6 @@ def show(ctx: click.Context | None) -> None:
         console.print()
         return
     for line in lines:
-        text = Text()
-        for column, char in enumerate(line):
-            text.append(char, style=_colour(column / max(width - 1, 1)))
-        console.print(text)
-    console.print(Text(f" v{__version__} · {TAGLINE}", style="dim"))
+        console.print(Text(line, style=_BADGE_STYLE))
+    console.print(Text(f" v{__version__} · {TAGLINE}", style=RUST))
     console.print()

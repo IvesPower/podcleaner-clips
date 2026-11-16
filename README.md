@@ -23,8 +23,8 @@ Then `pclips run notes.md`:
 
 - picks the French dub (VF) audio track, the France one (VFF) when there is also a Quebec one (VFQ); it warns you if no track is tagged French;
 - finds each line in the French subtitles when the film has some, then in the dub with Whisper (only around each clip, never the whole film);
-- moves the start and the end to sentence boundaries within 15 s of your timecodes, never cutting a word, with every noted fragment inside;
-- adds 0.7 s fades and your transition sound before and after the clip, then normalizes to -16 LUFS / -1 dBTP;
+- moves the start and the end to sentence boundaries, never cutting a word, with every noted fragment inside (with Claude: a clip centred on the noted line, with just the setup needed to get it and the reaction that follows; without Claude: the sentence boundaries closest to your timecodes, within 15 s);
+- adds 0.7 s fades and your transition sound before and after the clip, the film sound at -16 LUFS and the transition sound at -22 LUFS (both adjustable), never above -1 dBTP;
 - writes a 48 kHz WAV, an H.264 MP4 (black screen, or your transition video, during the transition, the picture fading in from black and out to black with the sound) and a `clips.json` index of the chosen cuts;
 - on later runs, only redoes the clips you added or changed, and renames the files of clips that moved.
 
@@ -57,7 +57,7 @@ This installs two names for the same command, usable from any folder: `podcleane
 | `pclips config` | Shows the configuration as read (`--path`: only where the file is) |
 | `pclips --version` | Shows the version |
 
-`pclips` alone, `init` and `run` start with the tool's name drawn in pixels. It is never shown when the output goes to a file or another program; turn it off with `pclips --no-banner …` or `PODCLEANER_CLIPS_NO_BANNER=1`.
+`pclips` alone, `init` and `run` start with the tool's name drawn in pixels, in the podcast's colours. It is never shown when the output goes to a file or another program; turn it off with `pclips --no-banner …` or `PODCLEANER_CLIPS_NO_BANNER=1`.
 
 The first run that locates lines downloads the Whisper model (`large-v3-turbo`, over 1 GB). On a Mac with Apple Silicon it runs with MLX; elsewhere with faster-whisper on the CPU.
 
@@ -96,13 +96,14 @@ pclips run notes.md
 | `--audio-only` / `--video-only` | Only the WAV files / only the MP4 files |
 | `--no-adjust` | Cut exactly at the noted timecodes (no subtitles, Whisper or Claude) |
 | `--audio-track N` | Use audio track N (from 0) when tracks are mislabelled |
+| `--lufs X` / `--transition-lufs X` | Loudness of the film sound / of the transition sound, in LUFS (else `[audio] lufs` / `transition_lufs`) |
 | `--config PATH` | Use another configuration file |
 
 The summary shows, for each clip, the noted and chosen timecodes, the length and what was done (`new`, `changed`, `unchanged`, `renamed`). A `⚠` line flags a doubt: line not found (the noted timecodes are kept) or found but unsure. Listen to those first. Files of clips removed from the notes are listed, never deleted. The exit code is 1 if a clip failed (for example, it ends after the film).
 
 ## Claude, optional
 
-No account is needed. When Claude is available, it suggests the film's abbreviation and chooses the bounds of each clip from the transcription; its answers are checked (within 15 s of your timecodes, every fragment inside) and recorded in `clips.json`. Without Claude, or if it cannot be reached, the abbreviation is the title's initials and the cut is the sentence boundary closest to each noted timecode.
+No account is needed. When Claude is available, it suggests the film's abbreviation and chooses the bounds of each clip from the transcription; it reads your timecodes as a rough area and your noted line as the moment that matters, and keeps that line with just the setup needed to understand it and the reaction that follows, never starting or ending in the middle of a line. Its answers are checked (inside your timecodes widened by 15 s, every fragment inside) and recorded in `clips.json`. The default model is `claude-sonnet-5-5` (`model` in `[claude]`). Without Claude, or if it cannot be reached, the abbreviation is the title's initials and the cut is the sentence boundary closest to each noted timecode.
 
 The tool reaches Claude in one of two ways, chosen with `backend` in `[claude]`:
 

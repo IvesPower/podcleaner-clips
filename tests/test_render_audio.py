@@ -1,5 +1,6 @@
 import json
 import subprocess
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -9,7 +10,14 @@ from make_test_film import make_test_film
 from podcleaner_clips.config import Settings
 from podcleaner_clips.errors import ClipsError
 from podcleaner_clips.media import AudioTrack, probe
-from podcleaner_clips.render_audio import ClipLayout, audio_filter, measure_loudness, render_audio
+from podcleaner_clips.render_audio import (
+    ClipLayout,
+    audio_filter,
+    measure_loudness,
+    peak_limiter,
+    render_audio,
+    transition_gain_db,
+)
 
 S = Settings(episodes_dir=Path("episodes"))
 VFF = AudioTrack(0, "fre", "Français VFF", 2)
@@ -114,3 +122,36 @@ def test_failed_render_leaves_no_file(tmp_path):
     with pytest.raises(ClipsError):
         render_audio(tmp_path / "missing.mkv", VFF, ClipLayout(0, 5, 0.7, None), None, out, S)
     assert list(tmp_path.iterdir()) == []
+
+
+def test_filter_applies_the_transition_gain_and_the_film_norm():
+    graph = audio_filter(
+        ClipLayout(2.0, 8.0, 0.7, 1.5), True, 0, film_norm="loudnorm=I=-16", transition_gain_db=-6
+    )
+    assert "volume=-6.00dB" in graph
+    assert "loudnorm=I=-16,aresample=48000" in graph
+
+
+def test_peak_limiter_limit():
+    assert "limit=0.8913" in peak_limiter(-1.0)
+
+
+def test_transition_gain_reaches_its_target(transition_wav):
+    gain = transition_gain_db(transition_wav, -30.0)
+    lufs, _ = measure_loudness(transition_wav)
+    assert lufs + gain == pytest.approx(-30.0, abs=0.5)
+
+
+def test_transition_and_film_have_their_own_loudness(test_film, transition_wav, tmp_path):
+    """Lowering the transition sound leaves the film sound where it was."""
+    layout = ClipLayout(2.0, 8.0, 0.7, 1.5)  # film from 0.8 s, outro from 6.1 s
+    loud, quiet = tmp_path / "loud.wav", tmp_path / "quiet.wav"
+    render_audio(test_film, VFF, layout, transition_wav, loud, replace(S, transition_lufs=-16.0))
+    render_audio(test_film, VFF, layout, transition_wav, quiet, replace(S, transition_lufs=-26.0))
+
+    a, b = samples(loud), samples(quiet)
+    intro = slice(0, 48000 // 2)  # transition sound only
+    middle = slice(48000 * 3, 48000 * 4)  # film sound only
+    assert rms_db(a[intro]) - rms_db(b[intro]) == pytest.approx(10.0, abs=1.0)
+    assert rms_db(a[middle]) == pytest.approx(rms_db(b[middle]), abs=0.5)
+    assert measure_loudness(quiet)[1] <= -0.9

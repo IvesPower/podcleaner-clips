@@ -16,6 +16,12 @@ APP_NAME = "podcleaner-clips"
 CONFIG_ENV_VAR = "PODCLEANER_CLIPS_CONFIG"
 DUBS = ("VFF", "VFQ")
 CLAUDE_BACKENDS = ("auto", "cli", "api", "off")
+# Loudness targets ffmpeg's loudnorm accepts (integrated LUFS).
+LUFS_MIN, LUFS_MAX = -70.0, -5.0
+
+
+def check_lufs(value: float) -> bool:
+    return LUFS_MIN <= value <= LUFS_MAX
 
 
 @dataclass(frozen=True)
@@ -35,10 +41,11 @@ class Settings:
     whisper_model: str = "large-v3-turbo"
     fade_s: float = 0.7
     lufs: float = -16.0
+    transition_lufs: float = -22.0
     true_peak: float = -1.0
     claude_enabled: bool = True  # false = backend "off" (kept for older files)
     claude_backend: str = "auto"
-    claude_model: str = "claude-haiku-5-5"
+    claude_model: str = "claude-sonnet-5-5"
     # Not settings: what to tell the user about the file (old key names, …).
     notices: tuple[str, ...] = field(default=(), compare=False)
 
@@ -60,6 +67,7 @@ _KEYS: dict[tuple[str | None, str], str] = {
     ("adjust", "whisper_model"): "whisper_model",
     ("audio", "fade_s"): "fade_s",
     ("audio", "lufs"): "lufs",
+    ("audio", "transition_lufs"): "transition_lufs",
     ("audio", "true_peak"): "true_peak",
     ("claude", "backend"): "claude_backend",
     ("claude", "enabled"): "claude_enabled",
@@ -133,8 +141,11 @@ _TEMPLATE = """\
 [audio]
 # Length (seconds) of the fade-in and fade-out.
 # fade_s = 0.7
-# Target loudness (integrated LUFS) and maximum true peak (dBTP).
+# Loudness (integrated LUFS, from -70 to -5) of the film sound of each clip, and of the
+# transition sound; the clip never goes over the true peak (dBTP). Also --lufs and
+# --transition-lufs on the command line.
 # lufs = -16.0
+# transition_lufs = -22.0
 # true_peak = -1.0
 
 [claude]
@@ -143,7 +154,9 @@ _TEMPLATE = """\
 #           subscription), else the API if ANTHROPIC_API_KEY is set, else no Claude;
 #   "cli":  only the Claude Code CLI;  "api": only the API;  "off": never.
 # backend = "auto"
-# model = "claude-haiku-5-5"
+# Model that picks the cuts: Sonnet weighs the humour and the context of a line well;
+# "claude-haiku-5-5" is faster and cheaper, "claude-opus-5-5" the most careful.
+# model = "claude-sonnet-5-5"
 """
 
 
@@ -196,6 +209,12 @@ def load_settings(path: Path | None = None) -> Settings:
     if values.get("claude_enabled") is False:
         backend = "off"
     values["claude_backend"] = backend
+
+    for name, key in (("lufs", "lufs"), ("transition_lufs", "transition_lufs")):
+        if name in values and not check_lufs(values[name]):
+            raise ClipsError(
+                f"[audio] {key} must be between {LUFS_MIN:g} and {LUFS_MAX:g} ({path})."
+            )
 
     for name in _PATH_FIELDS & values.keys():
         p = Path(values[name]).expanduser()

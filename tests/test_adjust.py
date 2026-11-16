@@ -240,6 +240,14 @@ def test_bounds_ok_rejects_cut_missing_a_fragment():
     assert not bounds_ok(SHIELD, 0, last, matches, 1645.0, 1657.0, S)
 
 
+def test_bounds_ok_accepts_a_clip_tighter_than_the_notes():
+    """Wide notes: the clip may start well after the noted start, around the line."""
+    decision = adjust_cut(SHIELD, ["je t'attends tête de bouclier"], [], 1635.0, 1657.0, S)
+    m = decision.matches[0]
+    assert SHIELD[m.first].start - 1600.0 > S.tolerance_s
+    assert bounds_ok(SHIELD, m.first, m.last, decision.matches, 1600.0, 1700.0, S)
+
+
 def test_bounds_ok_without_matches():
     assert bounds_ok(SHIELD, 3, 8, [None], SHIELD[3].start, SHIELD[8].end, S)
     assert isinstance(Match("x", 0, 1, 90.0), Match)
