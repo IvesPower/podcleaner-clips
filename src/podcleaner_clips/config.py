@@ -134,8 +134,9 @@ _TEMPLATE = """\
 # sentence_gap_s = 0.6
 # Margin (seconds) kept before the first word.
 # pad_before_s = 0.10
-# Pause (seconds) kept after the last word before the fade-out and the closing transition
-# start: raise it to let the line breathe longer.
+# Pause (seconds) kept after the last word before the closing transition starts: raise it
+# to let the line breathe longer. When the next line comes sooner, the film sound stops just
+# before it and silence fills the rest of the pause.
 # pad_after_s = 0.5
 # Whisper model used to transcribe the dub.
 # whisper_model = "large-v3-turbo"

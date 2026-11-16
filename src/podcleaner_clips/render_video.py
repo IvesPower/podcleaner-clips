@@ -34,14 +34,21 @@ def display_size(video: VideoInfo) -> tuple[int, int]:
     return _even(video.width * sar), _even(video.height)
 
 
-def _fades(duration: float, fade_s: float, *, fade_in: bool, fade_out: bool) -> list[str]:
+def _fades(
+    duration: float,
+    fade_s: float,
+    *,
+    fade_in: bool,
+    fade_out: bool,
+    fade_out_s: float | None = None,
+) -> list[str]:
+    steps = []
     fade = min(fade_s, duration / 2)
-    if fade <= 0:
-        return []
-    d = ffmpeg_seconds(fade)
-    steps = [f"fade=t=in:st=0:d={d}"] if fade_in else []
-    if fade_out:
-        steps.append(f"fade=t=out:st={ffmpeg_seconds(duration - fade)}:d={d}")
+    if fade_in and fade > 0:
+        steps.append(f"fade=t=in:st=0:d={ffmpeg_seconds(fade)}")
+    out = min(fade_s if fade_out_s is None else fade_out_s, duration / 2)
+    if fade_out and out > 0:
+        steps.append(f"fade=t=out:st={ffmpeg_seconds(duration - out)}:d={ffmpeg_seconds(out)}")
     return steps
 
 
@@ -66,7 +73,9 @@ def video_filter(video: VideoInfo, layout: ClipLayout, transition_video: bool = 
         f"scale={width}:{height}",
         *common,
         f"trim=duration={ffmpeg_seconds(layout.clip_s)}",
-        *_fades(layout.clip_s, layout.fade_s, fade_in=True, fade_out=True),
+        *_fades(
+            layout.clip_s, layout.fade_s, fade_in=True, fade_out=True, fade_out_s=layout.fade_out
+        ),
     ]
     before = layout.film_offset
     after = max(layout.total_s - layout.film_offset - layout.clip_s, 0.0)

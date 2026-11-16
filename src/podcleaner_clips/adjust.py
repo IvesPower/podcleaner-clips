@@ -36,6 +36,9 @@ class Cut:
     method: str  # "notes", "whisper" or "claude"
     score: float | None
     doubt: str | None
+    # End of the last word kept (None when the cut does not come from words): the closing
+    # fade and transition wait for it.
+    speech_end: float | None = None
 
 
 @dataclass(frozen=True)
@@ -195,7 +198,7 @@ def cut_from_words(words: list[Word], first: int, last: int, s: Settings) -> Cut
     end = words[last].end + s.pad_after_s + s.fade_s
     if last + 1 < len(words):
         end = min(end, words[last + 1].start)
-    return Cut(max(0.0, start), end, "whisper", None, None)
+    return Cut(max(0.0, start), end, "whisper", None, None, words[last].end)
 
 
 def bounds_ok(

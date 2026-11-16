@@ -9,6 +9,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+from podcleaner_clips.adjust import Cut
 from podcleaner_clips.config import Settings
 from podcleaner_clips.errors import ClipsError
 from podcleaner_clips.media import AudioTrack, require_ffmpeg
@@ -16,6 +17,8 @@ from podcleaner_clips.media import AudioTrack, require_ffmpeg
 SAMPLE_RATE = 48000
 _LRA = 11
 _FORMAT = f"aresample={SAMPLE_RATE},aformat=sample_fmts=fltp:channel_layouts=stereo"
+# Shortest fade-out, when the next line starts right after the last word.
+_MIN_FADE_S = 0.05
 
 
 @dataclass(frozen=True)
@@ -26,10 +29,40 @@ class ClipLayout:
     film_end: float
     fade_s: float
     transition_s: float | None
+    # Shorter fade-out when the next line comes soon after the last word (None: fade_s).
+    fade_out_s: float | None = None
+    # Earliest start of the closing transition, from the film start (None: with the fade-out).
+    outro_after_s: float | None = None
+
+    @classmethod
+    def for_cut(
+        cls, cut: Cut, fade_s: float, transition_s: float | None, pause_s: float
+    ) -> "ClipLayout":
+        """The layout of a cut: after its last word, a pause of `pause_s` before the closing
+        transition. When the next line starts sooner, the film sound stops before it with a
+        shorter fade-out that starts after the last word, and silence fills the rest of the
+        pause.
+        """
+        if cut.speech_end is None or not cut.start <= cut.speech_end <= cut.end:
+            return cls(cut.start, cut.end, fade_s, transition_s)
+        tail = cut.end - cut.speech_end
+        fade_out = fade_s if tail >= fade_s else max(tail, _MIN_FADE_S)
+        return cls(
+            cut.start,
+            cut.end,
+            fade_s,
+            transition_s,
+            fade_out_s=fade_out,
+            outro_after_s=cut.speech_end - cut.start + pause_s,
+        )
 
     @property
     def clip_s(self) -> float:
         return self.film_end - self.film_start
+
+    @property
+    def fade_out(self) -> float:
+        return self.fade_s if self.fade_out_s is None else self.fade_out_s
 
     @property
     def film_offset(self) -> float:
@@ -40,8 +73,11 @@ class ClipLayout:
 
     @property
     def outro_offset(self) -> float:
-        """When the closing transition starts: with the fade-out."""
-        return self.film_offset + self.clip_s - self.fade_s
+        """When the closing transition starts: with the fade-out, or after the pause."""
+        start = self.clip_s - min(self.fade_out, self.clip_s / 2)
+        if self.outro_after_s is not None:
+            start = max(start, self.outro_after_s)
+        return self.film_offset + start
 
     @property
     def total_s(self) -> float:
@@ -61,11 +97,11 @@ def ffmpeg_seconds(seconds: float) -> str:
 def film_chain(layout: ClipLayout, track: int = 0) -> str:
     """The film sound of the clip (input 0, already cut): 48 kHz stereo, with its fades."""
     clip = layout.clip_s
-    fade = min(layout.fade_s, clip / 2)
-    d, out_at = ffmpeg_seconds(fade), ffmpeg_seconds(clip - fade)
+    fade_in, fade_out = min(layout.fade_s, clip / 2), min(layout.fade_out, clip / 2)
     return (
         f"[0:a:{track}]asetpts=PTS-STARTPTS,{_FORMAT},"
-        f"afade=t=in:d={d},afade=t=out:st={out_at}:d={d}"
+        f"afade=t=in:d={ffmpeg_seconds(fade_in)},"
+        f"afade=t=out:st={ffmpeg_seconds(clip - fade_out)}:d={ffmpeg_seconds(fade_out)}"
     )
 
 
