@@ -184,11 +184,15 @@ def sentence_ends(words: list[Word], s: Settings) -> list[int]:
 
 
 def cut_from_words(words: list[Word], first: int, last: int, s: Settings) -> Cut:
-    """Bounds from two word indices, with margins that never reach into a neighbour word."""
+    """Bounds from two word indices, with margins that never reach into a neighbour word.
+
+    After the last word, the clip keeps `pad_after_s` of the film, then the fade-out (`fade_s`),
+    so the fade and the closing transition never start on the last word.
+    """
     start = words[first].start - s.pad_before_s
     if first > 0:
         start = max(start, words[first - 1].end)
-    end = words[last].end + s.pad_after_s
+    end = words[last].end + s.pad_after_s + s.fade_s
     if last + 1 < len(words):
         end = min(end, words[last + 1].start)
     return Cut(max(0.0, start), end, "whisper", None, None)

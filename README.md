@@ -24,7 +24,7 @@ Then `pclips run notes.md`:
 - picks the French dub (VF) audio track, the France one (VFF) when there is also a Quebec one (VFQ); it warns you if no track is tagged French;
 - finds each line in the French subtitles when the film has some, then in the dub with Whisper (only around each clip, never the whole film);
 - moves the start and the end to sentence boundaries, never cutting a word, with every noted fragment inside (with Claude: a clip centred on the noted line, with just the setup needed to get it and the reaction that follows; without Claude: the sentence boundaries closest to your timecodes, within 15 s);
-- adds 0.7 s fades and your transition sound before and after the clip, the film sound at -16 LUFS and the transition sound at -22 LUFS (both adjustable), never above -1 dBTP;
+- adds 0.7 s fades and your transition sound before and after the clip (after a 0.5 s pause following the last word, `pad_after_s`), the film sound at -16 LUFS and the transition sound at -19 LUFS (both adjustable), never above -1 dBTP;
 - writes a 48 kHz WAV, an H.264 MP4 (black screen, or your transition video, during the transition, the picture fading in from black and out to black with the sound) and a `clips.json` index of the chosen cuts;
 - on later runs, only redoes the clips you added or changed, and renames the files of clips that moved.
 

@@ -35,13 +35,17 @@ def test_badge_has_a_margin_all_around():
 
 
 def test_podcast_colours(terminal, monkeypatch):
+    """Cream letters on a rust badge (Rich's colour system forced: Windows CI reports 16)."""
+    real_console = banner.Console
+    monkeypatch.setattr(
+        banner,
+        "Console",
+        lambda **kw: real_console(**kw, force_terminal=True, color_system="truecolor"),
+    )
     monkeypatch.delenv("NO_COLOR")
-    monkeypatch.setenv("FORCE_COLOR", "1")
-    monkeypatch.setenv("COLORTERM", "truecolor")
     output = CliRunner().invoke(app, []).output
-    assert "\x1b[" in output
     # Rich writes truecolor as r;g;b: cream on rust.
-    assert "251;242;241" in output and "148;56;12" in output
+    assert "38;2;251;242;241" in output and "48;2;148;56;12" in output
 
 
 def test_command_alone_shows_the_banner_then_the_help(terminal):

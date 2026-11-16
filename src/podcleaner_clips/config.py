@@ -37,11 +37,11 @@ class Settings:
     score_sure: int = 85
     sentence_gap_s: float = 0.6
     pad_before_s: float = 0.10
-    pad_after_s: float = 0.25
+    pad_after_s: float = 0.5
     whisper_model: str = "large-v3-turbo"
     fade_s: float = 0.7
     lufs: float = -16.0
-    transition_lufs: float = -22.0
+    transition_lufs: float = -19.0
     true_peak: float = -1.0
     claude_enabled: bool = True  # false = backend "off" (kept for older files)
     claude_backend: str = "auto"
@@ -132,9 +132,11 @@ _TEMPLATE = """\
 # score_sure = 85
 # Silence (seconds) that marks the end of a sentence.
 # sentence_gap_s = 0.6
-# Margin (seconds) kept before the first word and after the last one.
+# Margin (seconds) kept before the first word.
 # pad_before_s = 0.10
-# pad_after_s = 0.25
+# Pause (seconds) kept after the last word before the fade-out and the closing transition
+# start: raise it to let the line breathe longer.
+# pad_after_s = 0.5
 # Whisper model used to transcribe the dub.
 # whisper_model = "large-v3-turbo"
 
@@ -145,7 +147,7 @@ _TEMPLATE = """\
 # transition sound; the clip never goes over the true peak (dBTP). Also --lufs and
 # --transition-lufs on the command line.
 # lufs = -16.0
-# transition_lufs = -22.0
+# transition_lufs = -19.0
 # true_peak = -1.0
 
 [claude]

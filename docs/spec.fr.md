@@ -22,7 +22,7 @@ Les notes sont prises vite, pendant le film : les timecodes sont approximatifs (
 | Repérage des références | Retrouve chaque référence dans la scène : d'abord dans les sous-titres français du film s'il en a, puis dans la transcription Whisper du doublage | ffmpeg (sous-titres), faster-whisper ou mlx-whisper (timestamps par mot), rapidfuzz | Choisir la bonne occurrence quand la référence est approximative ou répétée |
 | Ajustement des coupes | Garde la scène notée, mais cale son début et sa fin sur des limites de phrase à ±15 s près, sans couper un mot, avec les références obligatoirement incluses | faster-whisper ou mlx-whisper | Choisir les bornes exactes de la scène pour qu'elle ait du sens |
 | Abréviation du film | Donne une abréviation courte et stable au film (ex. « DDC » pour Le Dîner de cons), gardée pour tous ses extraits | Aucun | Proposer l'abréviation ; sans Claude, l'outil prend les initiales du titre |
-| Son des extraits | Fondu d'ouverture et de fermeture, son de transition au début et à la fin, son du film à -16 LUFS et son de transition à -22 LUFS (réglables), -1 dBTP au plus | ffmpeg | Aucun |
+| Son des extraits | Fondu d'ouverture et de fermeture, son de transition au début et à la fin, son du film à -16 LUFS et son de transition à -19 LUFS (réglables), -1 dBTP au plus | ffmpeg | Aucun |
 | Vidéo des extraits | Même découpe que l'audio, écran noir pendant le son de transition, image du film en fondu depuis et vers le noir en même temps que le son | ffmpeg | Aucun |
 | Index des extraits | Écrit un fichier JSON par film avec chaque extrait, sa référence, sa durée et ses fichiers | Aucun | Aucun |
 
@@ -97,7 +97,7 @@ Le Diner de cons/
   clips.json
 ```
 
-- **Audio** : WAV 48 kHz, son du film normalisé à -16 LUFS et son de transition à -22 LUFS (réglables dans la configuration ou avec `--lufs` / `--transition-lufs`), jamais au-dessus de -1 dBTP, pour que tous les extraits sortent au même volume en direct et que la transition reste en retrait.
+- **Audio** : WAV 48 kHz, son du film normalisé à -16 LUFS et son de transition à -19 LUFS (réglables dans la configuration ou avec `--lufs` / `--transition-lufs`), jamais au-dessus de -1 dBTP, pour que tous les extraits sortent au même volume en direct et que la transition reste en retrait.
 - **Vidéo** : MP4 H.264 avec son AAC, même découpe et même son que l'audio.
 - **Index** (`clips.json`) : pour chaque extrait, le numéro, la référence, les timecodes notés et retenus, la durée et les chemins des fichiers. C'est ce fichier que lira le futur lecteur en direct.
 
@@ -122,7 +122,7 @@ La première version ne fait pas le lecteur en direct, ni d'effets de transition
 | Fondus | 0,7 s à l'ouverture et à la fermeture, pour le son et l'image (l'image part du noir et y retourne) |
 | Son de transition | Commence juste avant l'extrait ; le fondu d'ouverture se fait pendant sa fin, et le son du film est à 100 % quand la transition est passée. Même chose à l'envers en fin d'extrait |
 | Transition vidéo | Écran noir pendant le son de transition, ou la vidéo de transition facultative (`transition_video` : muette, coupée ou bouclée à la bonne durée, mise au cadre du film avec des bandes noires, en fondu vers le noir avant le film et depuis le noir après) ; l'image du film apparaît depuis le noir et y retourne, en même temps que le son. Changer la vidéo de transition ne refait que les vidéos |
-| Formats de sortie | WAV 48 kHz (son du film à -16 LUFS, transition à -22 LUFS) pour l'audio, MP4 H.264 pour la vidéo |
+| Formats de sortie | WAV 48 kHz (son du film à -16 LUFS, transition à -19 LUFS) pour l'audio, MP4 H.264 pour la vidéo |
 | Chemins | Fichier de configuration par personne, aucun chemin en dur |
 
 Aucune question ouverte à ce stade : le cadrage est complet pour démarrer.
