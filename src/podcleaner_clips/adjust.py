@@ -203,12 +203,16 @@ def bounds_ok(
     noted_end: float,
     s: Settings,
 ) -> bool:
-    """Start and end within tolerance of the notes, every found fragment inside."""
+    """Inside the noted span widened by the tolerance, every found fragment inside.
+
+    The noted timecodes are wide: the clip may start well after the noted start and end well
+    before the noted end, around the line.
+    """
     if not 0 <= first <= last < len(words):
         return False
-    if abs(words[first].start - noted_start) > s.tolerance_s:
+    if words[first].start < noted_start - s.tolerance_s:
         return False
-    if abs(words[last].end - noted_end) > s.tolerance_s:
+    if words[last].end > noted_end + s.tolerance_s:
         return False
     return all(first <= m.first and m.last <= last for m in matches if m is not None)
 

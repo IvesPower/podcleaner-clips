@@ -141,6 +141,17 @@ def run_command(
         int | None,
         typer.Option("--audio-track", help="Audio track to use (number from 0), if mislabelled."),
     ] = None,
+    lufs: Annotated[
+        float | None,
+        typer.Option("--lufs", help="Loudness of the film sound, in LUFS (else [audio] lufs)."),
+    ] = None,
+    transition_lufs: Annotated[
+        float | None,
+        typer.Option(
+            "--transition-lufs",
+            help="Loudness of the transition sound, in LUFS (else [audio] transition_lufs).",
+        ),
+    ] = None,
     config_path: ConfigOption = None,
 ) -> None:
     """Cut the clips noted for a film; only what changed since the last run is redone."""
@@ -159,6 +170,8 @@ def run_command(
             dry_run=dry_run,
             audio_track=audio_track,
             config=config_path,
+            lufs=lufs,
+            transition_lufs=transition_lufs,
         )
     )
     if report.failures:

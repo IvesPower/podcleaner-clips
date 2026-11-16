@@ -152,6 +152,25 @@ def test_choose_bounds_sends_numbered_words_and_notes():
     assert "bouclier" in prompt
     assert f"[{index_of('Écoute-moi')}]" in prompt
     assert "1:40" in prompt and "2:00" in prompt
+    assert "(pause " in prompt  # silences between the sentences are shown
+
+
+def test_choose_bounds_accepts_a_clip_centred_on_the_line():
+    """Starting 5 s after the noted start, on the line itself, is allowed."""
+    first, last = index_of("Je"), index_of("bouclier.")
+    client = ClaudeClient(S, client=fake({"first_word": first, "last_word": last, "reason": ""}))
+    cut, _ = client.choose_bounds(WORDS, FRAGMENTS[0], decision(), 100.0, 120.0, S)
+    assert cut.method == "claude"
+    assert cut.start <= WORDS[first].start < cut.start + 0.5
+
+
+def test_bounds_system_prompt_asks_for_a_focused_clip():
+    messages = FakeMessages({"first_word": 0, "last_word": 1, "reason": ""})
+    ClaudeClient(S, client=SimpleNamespace(messages=messages)).choose_bounds(
+        WORDS, FRAGMENTS[0], decision(), 100.0, 120.0, S
+    )
+    system = messages.calls[0]["system"]
+    assert "punchline" in system and "setup" in system and "reaction" in system
 
 
 def test_api_error_falls_back_with_warning():
@@ -220,11 +239,11 @@ def test_cli_answers_the_abbreviation(monkeypatch):
     abbr, advice = client.propose_abbreviation("Avengers", "Avengers (2012).mkv")
 
     assert abbr == "AV"
-    assert advice == ClaudeAdvice("abbreviation", "AV", "initials", "claude-haiku-5-5", "cli")
+    assert advice == ClaudeAdvice("abbreviation", "AV", "initials", "claude-sonnet-5-5", "cli")
     assert "Claude Code CLI" in client.describe()
     args, stdin = runner.calls[-1]
     assert args[:2] == ["/bin/claude", "-p"]
-    assert args[args.index("--model") + 1] == "claude-haiku-5-5"
+    assert args[args.index("--model") + 1] == "claude-sonnet-5-5"
     assert args[args.index("--tools") + 1] == ""
     assert "--no-session-persistence" in args
     assert json.loads(args[args.index("--json-schema") + 1])["required"] == [

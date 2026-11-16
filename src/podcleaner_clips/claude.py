@@ -25,6 +25,8 @@ from podcleaner_clips.naming import fallback_abbreviation, format_tc
 
 _ABBREVIATION = re.compile(r"^[A-Z0-9]{2,6}$")
 _MAX_TOKENS = 16000
+# A silence this long between two words is shown to Claude: often a change of speaker.
+_PAUSE_S = 0.5
 
 _ABBREVIATION_SCHEMA = {
     "type": "object",
@@ -49,16 +51,35 @@ _ABBREVIATION_SYSTEM = (
     "digits only, no spaces or accents. Prefer the abbreviation fans already use for the film, "
     "otherwise the initials of the significant words of its title. Give a one-sentence reason."
 )
-_BOUNDS_SYSTEM = (
-    "You pick the start and end of a clip cut from a French-dubbed film, to be played live "
-    "during a podcast recording. While watching, the host noted a start timecode, a few words "
-    "of the line (not always exact, possibly several fragments) and an end timecode. The "
-    "timecodes are approximate: up to about 15 seconds off. The clip must keep the whole noted "
-    "scene: start at the beginning of a sentence, end at the end of a sentence, never in the "
-    "middle of a line, and include every found fragment. Some margin is better than a cut-off "
-    "line. Answer with the index of the first and last word of the clip, taken from the "
-    "numbered transcript, and a one-sentence reason in English."
-)
+_BOUNDS_SYSTEM = """\
+You are the editor of a French podcast about films. You cut a clip out of the French dub of a
+film; the hosts play it live during the recording to laugh about it.
+
+While watching, the host noted, for each clip:
+- a start and an end timecode: wide and approximate, they only frame the area of the scene
+  (up to about 15 seconds off, often wider than the clip should be);
+- the line that makes the moment, usually the funny one (the punchline): a few words, not
+  always exact, sometimes several fragments.
+
+Your job is to pick the clip that works best when played on its own:
+- It is centred on that line. Keep before it only the setup a listener needs to get the joke
+  (the question it answers, the situation, the line it reacts to), and no more. A scene's
+  start is not a reason to keep 20 seconds of unrelated talk.
+- It ends right after the line, keeping the immediate reaction or reply when it is part of
+  the joke (a comeback, a laugh, a one-word answer). Do not run on into the next exchange.
+- It never starts or ends in the middle of someone's line: start on the first word of a
+  sentence, end on the last word of one. A pause marked in the transcript, a change of
+  speaker or a final punctuation mark are good places to cut.
+- It contains every fragment found in the transcript.
+- Between two equally good bounds, prefer the shorter clip; but a clip that does not make
+  sense without context is worse than a few extra seconds.
+
+The transcript comes from a speech-to-text model: words may be slightly wrong, punctuation is
+approximate, and there is no speaker label, so read the meaning of the dialogue to find who
+says what. Answer with the index of the first and last word of the clip, taken from the
+numbered transcript, and a one-sentence reason in English saying what setup you kept and
+where you stopped.
+"""
 
 
 @dataclass(frozen=True)
@@ -318,8 +339,9 @@ def _bounds_prompt(
     s: Settings,
 ) -> str:
     lines = [
-        f"Noted start: {format_tc(noted_start)} (±{s.tolerance_s:g} s)",
-        f"Noted end: {format_tc(noted_end)} (±{s.tolerance_s:g} s)",
+        f"Noted area: {format_tc(noted_start)} to {format_tc(noted_end)} (approximate; the "
+        f"clip must stay between {format_tc(max(0.0, noted_start - s.tolerance_s))} and "
+        f"{format_tc(noted_end + s.tolerance_s)})",
         f"Noted line: {reference}",
         "",
         "Fragments found in the transcript:",
@@ -328,11 +350,10 @@ def _bounds_prompt(
         if m is not None:
             lines.append(f'- "{m.fragment}": words {m.first} to {m.last} (score {m.score:.0f})')
     if all(m is None for m in decision.matches):
-        lines.append("- none")
-    if decision.first_word is not None and decision.last_word is not None:
-        lines.append(
-            f"\nProposal without you: words {decision.first_word} to {decision.last_word}."
-        )
-    lines.append("\nTranscript ([index] start-end word):")
-    lines.extend(f"[{i}] {w.start:.2f}-{w.end:.2f} {w.text}" for i, w in enumerate(words))
+        lines.append("- none: find the noted line yourself, from its meaning")
+    lines.append("\nTranscript ([index] start-end word; pauses of 0.5 s or more are marked):")
+    for i, w in enumerate(words):
+        if i > 0 and w.start - words[i - 1].end >= _PAUSE_S:
+            lines.append(f"   (pause {w.start - words[i - 1].end:.1f} s)")
+        lines.append(f"[{i}] {w.start:.2f}-{w.end:.2f} {w.text}")
     return "\n".join(lines)

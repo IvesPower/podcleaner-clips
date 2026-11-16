@@ -22,7 +22,7 @@ Les notes sont prises vite, pendant le film : les timecodes sont approximatifs (
 | Repérage des références | Retrouve chaque référence dans la scène : d'abord dans les sous-titres français du film s'il en a, puis dans la transcription Whisper du doublage | ffmpeg (sous-titres), faster-whisper ou mlx-whisper (timestamps par mot), rapidfuzz | Choisir la bonne occurrence quand la référence est approximative ou répétée |
 | Ajustement des coupes | Garde la scène notée, mais cale son début et sa fin sur des limites de phrase à ±15 s près, sans couper un mot, avec les références obligatoirement incluses | faster-whisper ou mlx-whisper | Choisir les bornes exactes de la scène pour qu'elle ait du sens |
 | Abréviation du film | Donne une abréviation courte et stable au film (ex. « DDC » pour Le Dîner de cons), gardée pour tous ses extraits | Aucun | Proposer l'abréviation ; sans Claude, l'outil prend les initiales du titre |
-| Son des extraits | Fondu d'ouverture et de fermeture, son de transition au début et à la fin, normalisation à -16 LUFS et -1 dBTP | ffmpeg | Aucun |
+| Son des extraits | Fondu d'ouverture et de fermeture, son de transition au début et à la fin, son du film à -16 LUFS et son de transition à -22 LUFS (réglables), -1 dBTP au plus | ffmpeg | Aucun |
 | Vidéo des extraits | Même découpe que l'audio, écran noir pendant le son de transition, image du film en fondu depuis et vers le noir en même temps que le son | ffmpeg | Aucun |
 | Index des extraits | Écrit un fichier JSON par film avec chaque extrait, sa référence, sa durée et ses fichiers | Aucun | Aucun |
 
@@ -97,7 +97,7 @@ Le Diner de cons/
   clips.json
 ```
 
-- **Audio** : WAV 48 kHz, normalisé à -16 LUFS et -1 dBTP, pour que tous les extraits sortent au même volume en direct.
+- **Audio** : WAV 48 kHz, son du film normalisé à -16 LUFS et son de transition à -22 LUFS (réglables dans la configuration ou avec `--lufs` / `--transition-lufs`), jamais au-dessus de -1 dBTP, pour que tous les extraits sortent au même volume en direct et que la transition reste en retrait.
 - **Vidéo** : MP4 H.264 avec son AAC, même découpe et même son que l'audio.
 - **Index** (`clips.json`) : pour chaque extrait, le numéro, la référence, les timecodes notés et retenus, la durée et les chemins des fichiers. C'est ce fichier que lira le futur lecteur en direct.
 
@@ -115,14 +115,14 @@ La première version ne fait pas le lecteur en direct, ni d'effets de transition
 | Référence | Quelques mots de la réplique, approximatifs ; plusieurs fragments séparés par `…`, `...` ou ` - ` |
 | Bornes des extraits | L'extrait reprend la scène notée. Le début et la fin sont calés sur des limites de phrase à ±15 s des timecodes notés, sans couper un mot, et toutes les références sont incluses : mieux vaut un peu de marge qu'une réplique coupée. Références introuvables : timecodes notés gardés (sans couper de mot) et signalés |
 | Repérage | Sous-titres français en texte s'il y en a (hors « forcés »), puis Whisper sur la scène ±15 s ; Whisper seul sinon |
-| Rôle de Claude | Quand Claude est disponible (CLI Claude Code avec un abonnement d'abord, sinon une clé d'API), il choisit les bornes de chaque extrait à partir de la transcription ; sa réponse est contrôlée. Sans Claude, règle simple : limite de phrase la plus proche de chaque timecode noté |
+| Rôle de Claude | Quand Claude est disponible (CLI Claude Code avec un abonnement d'abord, sinon une clé d'API), il choisit les bornes de chaque extrait à partir de la transcription : les timecodes notés sont une zone approximative et la réplique notée le moment qui compte ; l'extrait est centré sur elle, garde juste le contexte nécessaire pour la comprendre et la réaction qui suit, et ne commence ni ne finit au milieu d'une réplique. Sa réponse est contrôlée (dans les timecodes notés élargis de 15 s, toutes les références incluses). Sans Claude, règle simple : limite de phrase la plus proche de chaque timecode noté |
 | Nommage | `{abréviation}-{numéro}-{premiers-mots-de-la-référence}.{format}` |
 | Abréviation | Proposée par Claude, initiales du titre sans Claude, puis figée dans le fichier de notes |
 | Langue | Toujours une piste VF, pour l'audio comme pour la vidéo ; VFF de préférence quand il y a aussi une VFQ (réglable) |
 | Fondus | 0,7 s à l'ouverture et à la fermeture, pour le son et l'image (l'image part du noir et y retourne) |
 | Son de transition | Commence juste avant l'extrait ; le fondu d'ouverture se fait pendant sa fin, et le son du film est à 100 % quand la transition est passée. Même chose à l'envers en fin d'extrait |
 | Transition vidéo | Écran noir pendant le son de transition, ou la vidéo de transition facultative (`transition_video` : muette, coupée ou bouclée à la bonne durée, mise au cadre du film avec des bandes noires, en fondu vers le noir avant le film et depuis le noir après) ; l'image du film apparaît depuis le noir et y retourne, en même temps que le son. Changer la vidéo de transition ne refait que les vidéos |
-| Formats de sortie | WAV 48 kHz à -16 LUFS pour l'audio, MP4 H.264 pour la vidéo |
+| Formats de sortie | WAV 48 kHz (son du film à -16 LUFS, transition à -22 LUFS) pour l'audio, MP4 H.264 pour la vidéo |
 | Chemins | Fichier de configuration par personne, aucun chemin en dur |
 
 Aucune question ouverte à ce stade : le cadrage est complet pour démarrer.

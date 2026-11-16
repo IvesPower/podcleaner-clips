@@ -23,8 +23,8 @@ Ensuite, `pclips run notes.md` :
 
 - choisit la piste en version française (VF), celle de France (VFF) quand il y a aussi une version québécoise (VFQ) ; prévient si aucune piste n'est marquée française ;
 - retrouve chaque réplique dans les sous-titres français quand le film en a, puis dans le doublage avec Whisper (seulement autour de chaque extrait, jamais le film entier) ;
-- cale le début et la fin sur des limites de phrase à 15 s au plus de vos timecodes, sans couper un mot, avec tous les fragments notés à l'intérieur ;
-- ajoute des fondus de 0,7 s et votre son de transition avant et après l'extrait, puis normalise à -16 LUFS / -1 dBTP ;
+- cale le début et la fin sur des limites de phrase, sans couper un mot, avec tous les fragments notés à l'intérieur (avec Claude : un extrait centré sur la réplique notée, avec juste le contexte nécessaire pour la comprendre et la réaction qui suit ; sans Claude : les limites de phrase les plus proches de vos timecodes, à 15 s au plus) ;
+- ajoute des fondus de 0,7 s et votre son de transition avant et après l'extrait, le son du film à -16 LUFS et le son de transition à -22 LUFS (réglables), jamais au-dessus de -1 dBTP ;
 - écrit un WAV 48 kHz, un MP4 H.264 (écran noir, ou votre vidéo de transition, pendant la transition, l'image qui apparaît depuis le noir et y retourne en même temps que le son) et un index `clips.json` des coupes retenues ;
 - aux passages suivants, ne refait que les extraits ajoutés ou modifiés, et renomme les fichiers des extraits déplacés.
 
@@ -57,7 +57,7 @@ Cela installe deux noms pour la même commande, utilisables depuis n'importe que
 | `pclips config` | Affiche la configuration telle qu'elle est lue (`--path` : seulement l'emplacement du fichier) |
 | `pclips --version` | Affiche la version |
 
-`pclips` seul, `init` et `run` commencent par le nom de l'outil dessiné en pixels. Il n'apparaît jamais quand la sortie va dans un fichier ou un autre programme ; pour le retirer : `pclips --no-banner …` ou `PODCLEANER_CLIPS_NO_BANNER=1`.
+`pclips` seul, `init` et `run` commencent par le nom de l'outil dessiné en pixels, aux couleurs du podcast. Il n'apparaît jamais quand la sortie va dans un fichier ou un autre programme ; pour le retirer : `pclips --no-banner …` ou `PODCLEANER_CLIPS_NO_BANNER=1`.
 
 Le premier passage qui repère des répliques télécharge le modèle Whisper (`large-v3-turbo`, plus de 1 Go). Sur un Mac Apple Silicon, il tourne avec MLX ; ailleurs, avec faster-whisper sur le processeur.
 
@@ -96,13 +96,14 @@ pclips run notes.md
 | `--audio-only` / `--video-only` | Seulement les WAV / seulement les MP4 |
 | `--no-adjust` | Coupe exactement aux timecodes notés (sans sous-titres, Whisper ni Claude) |
 | `--audio-track N` | Utilise la piste audio N (à partir de 0) si les pistes sont mal étiquetées |
+| `--lufs X` / `--transition-lufs X` | Volume du son du film / du son de transition, en LUFS (sinon `[audio] lufs` / `transition_lufs`) |
 | `--config CHEMIN` | Utilise un autre fichier de configuration |
 
 Le résumé affiche, pour chaque extrait, les timecodes notés et retenus, la durée et ce qui a été fait (`new`, `changed`, `unchanged`, `renamed`). Une ligne `⚠` signale un doute : réplique introuvable (les timecodes notés sont gardés) ou trouvée mais peu sûre. Écoutez ceux-là en premier. Les fichiers des extraits retirés des notes sont listés, jamais supprimés. Le code de sortie vaut 1 si un extrait a échoué (par exemple, s'il finit après le film).
 
 ## Claude, facultatif
 
-Aucun compte n'est nécessaire. Quand Claude est disponible, il propose l'abréviation du film et choisit les bornes de chaque extrait à partir de la transcription ; ses réponses sont contrôlées (à 15 s au plus de vos timecodes, tous les fragments inclus) et gardées dans `clips.json`. Sans Claude, ou s'il est injoignable, l'abréviation reprend les initiales du titre et la coupe se fait sur la limite de phrase la plus proche de chaque timecode noté.
+Aucun compte n'est nécessaire. Quand Claude est disponible, il propose l'abréviation du film et choisit les bornes de chaque extrait à partir de la transcription ; il lit vos timecodes comme une zone approximative et votre réplique notée comme le moment qui compte, et garde cette réplique avec juste le contexte nécessaire pour la comprendre et la réaction qui suit, sans jamais commencer ni finir au milieu d'une réplique. Ses réponses sont contrôlées (dans vos timecodes élargis de 15 s, tous les fragments inclus) et gardées dans `clips.json`. Le modèle par défaut est `claude-sonnet-5-5` (`model` dans `[claude]`). Sans Claude, ou s'il est injoignable, l'abréviation reprend les initiales du titre et la coupe se fait sur la limite de phrase la plus proche de chaque timecode noté.
 
 L'outil joint Claude de l'une de ces deux façons, au choix avec `backend` dans `[claude]` :
 

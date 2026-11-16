@@ -39,7 +39,7 @@ Skills du projet : `test-rapide` (test de bout en bout sur un film généré, av
 | Sans compte | Aucune clé d'API requise : chaque appel à Claude a un repli |
 | Formats d'entrée | .mkv le plus souvent, aussi .avi et .mp4 |
 | Liste des extraits | Un fichier de notes par film ; une ligne par extrait : `TC référence TC` (ex. `42:30 vas-y, je t'attends, tête de bouclier 42:40`) ; `HH:MM:SS` ou `MM:SS`, `6;25` et `25 min 30` tolérés ; ancienne forme `- TC > TC \| réplique` acceptée ; les autres lignes sont ignorées |
-| Bornes des extraits | Timecodes approximatifs (~10 s) et référence partielle (quelques mots, plusieurs fragments possibles séparés par `…`, `...` ou ` - `). L'extrait reprend la scène notée : début et fin calés sur des limites de phrase à ±15 s des timecodes notés, sans couper un mot, toutes les références trouvées incluses |
+| Bornes des extraits | Timecodes approximatifs (~10 s) et référence partielle (quelques mots, plusieurs fragments possibles séparés par `…`, `...` ou ` - `). L'extrait reprend la scène notée : début et fin calés sur des limites de phrase, sans couper un mot, toutes les références trouvées incluses ; avec Claude, extrait centré sur la réplique (contexte utile avant, réaction immédiate après) dans les timecodes notés élargis de 15 s ; sans Claude, limites à ±15 s des timecodes notés |
 | Langue | Toujours une piste VF, VFF de préférence quand il y a aussi une VFQ (réglable) ; sans piste marquée française, la première, avec un avertissement |
 | Repérage | Sous-titres français en texte s'il y en a (hors « forcés »), puis Whisper ; coupes toujours sur les mots du doublage transcrits par Whisper |
 | Abréviation | Proposée par Claude, initiales du titre sans Claude, puis figée dans le fichier de notes |
@@ -47,7 +47,7 @@ Skills du projet : `test-rapide` (test de bout en bout sur un film généré, av
 | Fondus | 0,7 s à l'ouverture et à la fermeture, pour le son et l'image (fondu depuis et vers le noir) |
 | Son de transition | Commence juste avant l'extrait ; le fondu d'ouverture se fait pendant sa fin ; même chose à l'envers en fin d'extrait |
 | Transition vidéo | Écran noir pendant le son de transition, ou `transition_video` (muette, bouclée/coupée, cadrée avec bandes noires, fondu par le noir avec le film) ; l'image du film part du noir et y retourne en même temps que le son. Son empreinte est notée par extrait (`transition_video_sha`) : la changer ne refait que les MP4 |
-| Sorties | `{episodes_dir}/{nom-film}/audio/` (WAV 48 kHz, -16 LUFS, -1 dBTP), `…/video/` (MP4 H.264 + AAC), `…/clips.json` |
+| Sorties | `{episodes_dir}/{nom-film}/audio/` (WAV 48 kHz : son du film à `lufs` -16, son de transition à `transition_lufs` -22, réglables aussi par `--lufs` / `--transition-lufs` ; -1 dBTP), `…/video/` (MP4 H.264 + AAC), `…/clips.json` |
 | Relance | Ne réécrit que les extraits ajoutés ou modifiés |
 | Chemins | Fichier de configuration par personne, aucun chemin en dur |
 | Hors périmètre v1 | Lecteur en direct, effets de transition vidéo autres que le fondu au noir et la vidéo de transition, sous-titres |
@@ -58,7 +58,7 @@ Skills du projet : `test-rapide` (test de bout en bout sur un film généré, av
 | Sujet | Décision |
 | --- | --- |
 | Paquet / commande | `podcleaner_clips` / `podcleaner-clips` et son alias `pclips` (`init`, `run`, `config [--path]`, `version`, `--version` ; `config init` et `config show` restent comme alias cachés). Installation : `uv tool install git+https://github.com/IvesPower/podcleaner-clips` |
-| Bannière | Nom en pixel art (demi-blocs, dégradé avec Rich, 64 colonnes) au début de `init`, `run` et de la commande seule ; jamais hors terminal ; `--no-banner` ou `PODCLEANER_CLIPS_NO_BANNER=1` ; titre sur une ligne si le terminal est trop étroit ou ne sait pas afficher les blocs |
+| Bannière | Nom en pixel art (demi-blocs, lettres #fbf2f1 sur pastille #94380c, couleurs du podcast, 65 colonnes) au début de `init`, `run` et de la commande seule ; jamais hors terminal ; `--no-banner` ou `PODCLEANER_CLIPS_NO_BANNER=1` ; titre sur une ligne si le terminal est trop étroit ou ne sait pas afficher les blocs |
 | Création de la configuration | `init` pose les questions (dossier des épisodes, des films, son de transition, doublage, Claude) et écrit le modèle commenté avec les réponses ; valeurs actuelles proposées par défaut, remplacement après confirmation, écriture atomique ; hors terminal ou `--no-input` : modèle commenté sans questions |
 | Configuration | TOML dans `platformdirs.user_config_dir("podcleaner-clips")/config.toml`, remplaçable par `--config` ou `PODCLEANER_CLIPS_CONFIG` |
 | Titre et dossier du film | Titre : `# ` des notes, sinon nom du fichier du film jusqu'à l'année (`Avengers (2012)`) ; dossier : titre sans accents ni `<>:"/\|?*`, ≤ 60 caractères. Film : `--film` ou `file:` |
@@ -67,9 +67,9 @@ Skills du projet : `test-rapide` (test de bout en bout sur un film généré, av
 | Image pendant la transition | Noire tant que le son du film n'a pas commencé, pour rester synchrone |
 | Canaux | Sortie stéréo (une VF 5.1 est réduite en stéréo) ; WAV 24 bits |
 | Doute | Fragment introuvable (score < 70) ou peu sûr (< 85) : signalé ; aucun fragment trouvé : timecodes notés gardés (calés sur des mots), signalés |
-| Rôle de Claude | Quand Claude est disponible, il choisit les bornes de chaque extrait à partir de la transcription ; réponse contrôlée (bornes à ±15 s des notes, fragments inclus) ; sans Claude, limite de phrase la plus proche de chaque timecode noté |
+| Rôle de Claude | Quand Claude est disponible, il choisit les bornes de chaque extrait à partir de la transcription ; réponse contrôlée (bornes dans les timecodes notés élargis de 15 s, fragments inclus) ; sans Claude, limite de phrase la plus proche de chaque timecode noté |
 | Accès à Claude | `[claude] backend` : `auto` (CLI Claude Code connectée = abonnement, sinon `ANTHROPIC_API_KEY`, sinon repli), `cli`, `api`, `off`. La CLI est lancée sans outils, sans session gardée, sans réglages ni MCP, depuis un dossier temporaire, sans `ANTHROPIC_API_KEY` ; une erreur de la CLI arrête de la solliciter pour le reste du passage |
-| Modèles | Whisper `large-v3-turbo` en `fr` ; Claude `claude-haiku-5-5` ; réglables |
+| Modèles | Whisper `large-v3-turbo` en `fr` ; Claude `claude-sonnet-5-5` ; réglables |
 | Extraits retirés | Fichiers non supprimés, listés comme orphelins |
 
 ## Points de vigilance

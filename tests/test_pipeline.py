@@ -386,3 +386,16 @@ def test_transition_video_ignored_without_transition_or_video(setup):
     _with_transition_video(setup, setup.root / "absent.mp4")  # never opened
     setup.run(adjust=False, transition=False)
     setup.run(adjust=False, video=False)
+
+
+def test_loudness_options_replace_the_configuration(setup):
+    setup.run(adjust=False, audio=True, video=False, transition_lufs=-30.0)
+    first = setup.index()["clips"][0]["fingerprint"]
+    setup.run(adjust=False, audio=True, video=False, transition_lufs=-20.0)
+    assert setup.index()["clips"][0]["fingerprint"] != first  # the WAVs were redone
+    assert any("changed" in line for line in setup.lines)
+
+
+def test_loudness_option_out_of_range_is_an_error(setup):
+    with pytest.raises(ClipsError, match="--transition-lufs must be between -70 and -5"):
+        setup.run(adjust=False, transition_lufs=0.0)

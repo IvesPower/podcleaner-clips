@@ -35,9 +35,9 @@ def test_defaults_applied(tmp_path):
     assert (s.pad_before_s, s.pad_after_s) == (0.10, 0.25)
     assert s.whisper_model == "large-v3-turbo"
     assert s.fade_s == 0.7
-    assert (s.lufs, s.true_peak) == (-16.0, -1.0)
+    assert (s.lufs, s.transition_lufs, s.true_peak) == (-16.0, -22.0, -1.0)
     assert s.claude_enabled is True
-    assert s.claude_model == "claude-haiku-5-5"
+    assert s.claude_model == "claude-sonnet-5-5"
 
 
 def test_sections_override_defaults(tmp_path):
@@ -247,4 +247,20 @@ def test_claude_backend(tmp_path, claude, backend):
 def test_unknown_claude_backend_is_an_error(tmp_path):
     cfg = _write(tmp_path / "config.toml", 'episodes_dir = "ep"\n[claude]\nbackend = "web"\n')
     with pytest.raises(ClipsError, match="backend"):
+        load_settings(cfg)
+
+
+def test_loudness_settings(tmp_path):
+    cfg = _write(
+        tmp_path / "config.toml",
+        'episodes_dir = "ep"\n[audio]\nlufs = -14\ntransition_lufs = -24.5\n',
+    )
+    s = load_settings(cfg)
+    assert (s.lufs, s.transition_lufs) == (-14.0, -24.5)
+
+
+@pytest.mark.parametrize("key", ["lufs", "transition_lufs"])
+def test_loudness_out_of_range_is_an_error(tmp_path, key):
+    cfg = _write(tmp_path / "config.toml", f'episodes_dir = "ep"\n[audio]\n{key} = 3\n')
+    with pytest.raises(ClipsError, match=f"\\[audio\\] {key} must be between -70 and -5"):
         load_settings(cfg)

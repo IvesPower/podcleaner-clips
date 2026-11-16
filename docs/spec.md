@@ -22,7 +22,7 @@ Notes are taken quickly, during the film: timecodes are approximate (about ten s
 | Finding the references | Finds each reference in the scene: first in the film's French subtitles if it has any, then in the Whisper transcription of the dub | ffmpeg (subtitles), faster-whisper or mlx-whisper (word timestamps), rapidfuzz | Choose the right occurrence when the reference is approximate or repeated |
 | Cut adjustment | Keeps the noted scene, but snaps its start and end to sentence boundaries within ±15 s, without cutting a word, with every reference included | faster-whisper or mlx-whisper | Choose the scene's exact bounds so that it makes sense |
 | Film abbreviation | Gives the film a short, stable abbreviation (e.g. "DDC" for Le Dîner de cons), kept for all its clips | None | Suggest the abbreviation; without Claude, the tool uses the title's initials |
-| Clip audio | Fade-in and fade-out, transition sound at the start and the end, normalization to -16 LUFS and -1 dBTP | ffmpeg | None |
+| Clip audio | Fade-in and fade-out, transition sound at the start and the end, film sound at -16 LUFS and transition sound at -22 LUFS (adjustable), -1 dBTP at most | ffmpeg | None |
 | Clip video | Same cut as the audio, black screen during the transition sound, the film picture fading in from and out to black with the sound | ffmpeg | None |
 | Clip index | Writes one JSON file per film with each clip, its reference, its duration and its files | None | None |
 
@@ -97,7 +97,7 @@ Le Diner de cons/
   clips.json
 ```
 
-- **Audio**: 48 kHz WAV, normalized to -16 LUFS and -1 dBTP, so that all clips play at the same volume live.
+- **Audio**: 48 kHz WAV, film sound normalized to -16 LUFS and transition sound to -22 LUFS (both adjustable in the configuration or with `--lufs` / `--transition-lufs`), never above -1 dBTP, so that all clips play at the same volume live and the transition stays in the background.
 - **Video**: H.264 MP4 with AAC sound, same cut and same sound as the audio.
 - **Index** (`clips.json`): for each clip, the number, the reference, the noted and chosen timecodes, the duration and the file paths. This is the file the future live player will read.
 
@@ -115,14 +115,14 @@ The first version does not include the live player, video transition effects oth
 | Reference | A few words of the line, approximate; several fragments separated by `…`, `...` or ` - ` |
 | Clip bounds | The clip keeps the noted scene. Start and end are snapped to sentence boundaries within ±15 s of the noted timecodes, without cutting a word, and every reference is included: better a little margin than a cut-off line. References not found: noted timecodes kept (without cutting a word) and flagged |
 | Locating | French text subtitles if any (other than "forced"), then Whisper on the scene ±15 s; Whisper only otherwise |
-| Claude's role | When Claude is available (Claude Code CLI with a subscription first, else an API key), it picks each clip's bounds from the transcription; its answer is checked. Without Claude, a simple rule: the sentence boundary closest to each noted timecode |
+| Claude's role | When Claude is available (Claude Code CLI with a subscription first, else an API key), it picks each clip's bounds from the transcription: the noted timecodes are a rough area and the noted line the moment that matters; the clip is centred on it, keeps just the setup needed to understand it and the reaction that follows, and never starts or ends in the middle of a line. Its answer is checked (inside the noted timecodes widened by 15 s, every reference included). Without Claude, a simple rule: the sentence boundary closest to each noted timecode |
 | Naming | `{abbreviation}-{number}-{first-words-of-the-reference}.{format}` |
 | Abbreviation | Suggested by Claude, title initials without Claude, then frozen in the notes file |
 | Language | Always a VF track, for audio and video alike; VFF preferred when there is also a VFQ (configurable) |
 | Fades | 0.7 s at the start and the end, sound and picture (the picture fades from and to black) |
 | Transition sound | Starts just before the clip; the fade-in happens during its end, and the film sound is at 100% once the transition is over. The same in reverse at the end of the clip |
 | Video transition | Black screen during the transition sound, or the optional transition video (`transition_video`: silent, cut or looped to length, fitted to the film's frame with black bars, fading to black before the film and in from black after it); the film picture fades in from black and out to black, at the same time as the sound. Changing the transition video redoes the videos only |
-| Output formats | 48 kHz WAV at -16 LUFS for audio, H.264 MP4 for video |
+| Output formats | 48 kHz WAV (film sound at -16 LUFS, transition at -22 LUFS) for audio, H.264 MP4 for video |
 | Paths | One configuration file per person, no hard-coded path |
 
 No open question at this stage: the design is complete enough to start.
