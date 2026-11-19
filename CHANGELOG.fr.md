@@ -23,7 +23,7 @@ Première version publique. podcleaner-clips découpe dans un film les extraits 
 
 - La configuration, l'en-tête des notes et l'index utilisent maintenant des clés en anglais (`episodes_dir`, `file:`, `clips.json`…). Les anciens noms français (`dossier_episodes`, `fichier:`, `extraits.json`…) restent lus, avec un avis qui demande de les renommer.
 - Le son de transition n'est plus mixé au niveau de l'extrait. Il a maintenant son propre volume (`transition_lufs`, -19 LUFS par défaut) : la prochaine relance refait chaque extrait une fois.
-- Le fondu de fermeture ne commence plus sur le dernier mot : une pause (`pad_after_s`, maintenant 0,5 s) vient d'abord, puis le fondu. Quand la réplique suivante arrive plus tôt, le son du film s'arrête juste avant elle, avec un fondu plus court, et la transition attend quand même la fin de la pause.
+- Le fondu de fermeture ne commence plus sur le dernier mot : une pause (`pad_after_s`, maintenant 0,5 s) vient d'abord, puis le fondu. Quand la réplique suivante arrive plus tôt, le son du film s'arrête juste avant elle avec un fondu plus court en S, l'image continue et descend au noir jusqu'à la transition, et la transition attend quand même la fin de la pause.
 - Le modèle Claude par défaut est maintenant `claude-sonnet-5-5` au lieu de `claude-haiku-5-5`, et ses coupes peuvent être plus serrées que vos timecodes.
 
 ### Prérequis

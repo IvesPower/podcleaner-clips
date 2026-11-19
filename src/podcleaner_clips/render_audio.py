@@ -18,7 +18,10 @@ SAMPLE_RATE = 48000
 _LRA = 11
 _FORMAT = f"aresample={SAMPLE_RATE},aformat=sample_fmts=fltp:channel_layouts=stereo"
 # Shortest fade-out, when the next line starts right after the last word.
-_MIN_FADE_S = 0.05
+_MIN_FADE_S = 0.2
+# A shortened fade-out may start this long before the end of the last word: Whisper's word
+# ends are often late, and the S-shaped curve keeps the start of the fade near full level.
+_EARLY_FADE_S = 0.15
 
 
 @dataclass(frozen=True)
@@ -40,13 +43,14 @@ class ClipLayout:
     ) -> "ClipLayout":
         """The layout of a cut: after its last word, a pause of `pause_s` before the closing
         transition. When the next line starts sooner, the film sound stops before it with a
-        shorter fade-out that starts after the last word, and silence fills the rest of the
-        pause.
+        shorter, S-shaped fade-out that ends on the last word's tail, and silence fills the
+        rest of the pause; the picture goes on until the transition and fades out over
+        `fade_s`.
         """
         if cut.speech_end is None or not cut.start <= cut.speech_end <= cut.end:
             return cls(cut.start, cut.end, fade_s, transition_s)
         tail = cut.end - cut.speech_end
-        fade_out = fade_s if tail >= fade_s else max(tail, _MIN_FADE_S)
+        fade_out = fade_s if tail >= fade_s else min(fade_s, max(tail + _EARLY_FADE_S, _MIN_FADE_S))
         return cls(
             cut.start,
             cut.end,
@@ -63,6 +67,18 @@ class ClipLayout:
     @property
     def fade_out(self) -> float:
         return self.fade_s if self.fade_out_s is None else self.fade_out_s
+
+    @property
+    def short_fade_out(self) -> bool:
+        """The film sound stops early (next line close): its fade is shorter and S-shaped."""
+        return self.fade_out < self.fade_s
+
+    @property
+    def picture_s(self) -> float:
+        """How long the film picture shows: until the closing transition starts."""
+        if self.transition_s is None:
+            return self.clip_s
+        return max(self.clip_s, self.outro_offset - self.film_offset)
 
     @property
     def film_offset(self) -> float:
@@ -102,6 +118,7 @@ def film_chain(layout: ClipLayout, track: int = 0) -> str:
         f"[0:a:{track}]asetpts=PTS-STARTPTS,{_FORMAT},"
         f"afade=t=in:d={ffmpeg_seconds(fade_in)},"
         f"afade=t=out:st={ffmpeg_seconds(clip - fade_out)}:d={ffmpeg_seconds(fade_out)}"
+        + (":curve=hsin" if layout.short_fade_out else "")
     )
 
 

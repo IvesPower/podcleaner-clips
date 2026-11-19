@@ -177,3 +177,31 @@ def test_transition_video_replaces_the_black(test_film, transition_mp4, tmp_path
     assert float(info["video"]["duration"]) == pytest.approx(9.6, abs=0.1)
     assert float(info["audio"]["duration"]) == pytest.approx(9.6, abs=0.1)
     assert info["audio"]["codec_name"] == "aac"  # one sound only: the clip's
+
+
+def test_picture_goes_on_until_the_transition_when_the_sound_stops_early(
+    test_film, transition_wav, tmp_path
+):
+    """Next line 0.3 s after the last word: the sound stops, the picture fades out until the
+    closing transition, and the MP4 lasts as long as the WAV."""
+    from podcleaner_clips.adjust import Cut
+
+    layout = ClipLayout.for_cut(Cut(2.0, 8.0, "claude", None, None, 7.7), 0.7, 1.5, 0.5)
+    assert layout.picture_s == pytest.approx(6.2)
+    graph = video_filter(VideoInfo(320, 240, "24", "1:1"), layout)
+    assert "trim=duration=6.2" in graph and "fade=t=out:st=5.5:d=0.7" in graph
+
+    S = Settings(episodes_dir=tmp_path)
+    wav, mp4 = tmp_path / "clip.wav", tmp_path / "clip.mp4"
+    render_audio(test_film, AudioTrack(0, "fre", "VFF", 2), layout, transition_wav, wav, S)
+    render_video(test_film, probe(test_film).video, layout, wav, mp4)
+    duration = float(
+        json.loads(
+            subprocess.run(
+                ["ffprobe", "-v", "error", "-print_format", "json", "-show_format", mp4],
+                check=True,
+                capture_output=True,
+            ).stdout
+        )["format"]["duration"]
+    )
+    assert duration == pytest.approx(layout.total_s, abs=0.1)

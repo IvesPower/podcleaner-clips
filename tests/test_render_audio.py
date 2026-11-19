@@ -169,11 +169,18 @@ def test_layout_when_the_next_line_follows_soon():
     """The next word starts 0.44 s after the last one: the film stops before it, the fade
     starts after the last word, and the transition still waits for the pause."""
     lay = ClipLayout.for_cut(Cut(40.26, 51.56, "claude", None, None, 51.12), 0.7, 0.6, 0.5)
-    assert lay.fade_out == pytest.approx(0.44)
+    assert lay.fade_out == pytest.approx(0.59)  # 0.44 s of pause + 0.15 s of the word's tail
+    assert lay.short_fade_out
     assert lay.outro_offset == pytest.approx(51.12 + 0.5 - 40.26)
     assert lay.total_s == pytest.approx(lay.outro_offset + 0.6)
+    assert lay.picture_s == pytest.approx(lay.outro_offset)  # the picture waits for it
     graph = audio_filter(lay, with_transition=True)
-    assert "afade=t=out:st=10.86:d=0.44" in graph
+    assert "afade=t=out:st=10.71:d=0.59:curve=hsin" in graph
+
+
+def test_shortened_fade_out_has_a_minimum():
+    lay = ClipLayout.for_cut(Cut(0.0, 10.0, "claude", None, None, 9.98), 0.7, 0.6, 0.5)
+    assert lay.fade_out == pytest.approx(0.2)
 
 
 def test_layout_without_words_is_unchanged():
