@@ -4,7 +4,7 @@
 
 Les changements notables de podcleaner-clips. Les versions suivent la [gestion sémantique de version](https://semver.org/lang/fr/).
 
-## [1.0.0] - pas encore publiée
+## [1.0.0] - 2026-11-19
 
 Première version publique. podcleaner-clips découpe dans un film les extraits notés pendant le visionnage (timecode de début, quelques mots de la réplique, timecode de fin) et les range en WAV et en MP4, prêts à être diffusés en direct pendant l'enregistrement d'un épisode.
 
