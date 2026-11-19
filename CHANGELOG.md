@@ -4,7 +4,7 @@
 
 All notable changes to podcleaner-clips. Versions follow [Semantic Versioning](https://semver.org/).
 
-## [1.0.0] - not released yet
+## [1.0.0] - 2026-11-19
 
 First public version. podcleaner-clips cuts the clips you noted while watching a film (start timecode, a few words of the line, end timecode) and files them as WAV and MP4, ready to be played live while recording a podcast episode.
 
