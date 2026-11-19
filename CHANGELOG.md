@@ -23,7 +23,7 @@ First public version. podcleaner-clips cuts the clips you noted while watching a
 
 - Configuration, notes header and index now use English keys (`episodes_dir`, `file:`, `clips.json`…). The old French names (`dossier_episodes`, `fichier:`, `extraits.json`…) are still read, with a notice that asks you to rename them.
 - The transition sound is no longer mixed at the clip's level. It now has its own loudness (`transition_lufs`, -19 LUFS by default): reruns redo every clip once.
-- The fade-out no longer starts on the last word: a pause (`pad_after_s`, now 0.5 s) comes first, then the fade. When the next line starts sooner, the film sound stops just before it, with a shorter fade, and the transition still waits for the pause.
+- The fade-out no longer starts on the last word: a pause (`pad_after_s`, now 0.5 s) comes first, then the fade. When the next line starts sooner, the film sound stops just before it with a shorter, S-shaped fade, the picture goes on and fades to black until the transition, and the transition still waits for the pause.
 - Claude's default model is now `claude-sonnet-5-5` instead of `claude-haiku-5-5`, and its cuts may be tighter than your timecodes.
 
 ### Requirements

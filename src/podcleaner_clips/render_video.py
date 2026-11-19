@@ -11,8 +11,9 @@ from podcleaner_clips.render_audio import ClipLayout, ffmpeg_seconds, run_ffmpeg
 
 _FALLBACK_FPS = "24"
 # Bumped when the picture changes for the same cut: a rerun then redoes the videos only.
-# 1: black screen and hard cuts. 2: fade from and to black.
-VIDEO_RENDER_VERSION = 2
+# 1: black screen and hard cuts. 2: fade from and to black. 3: the picture goes on until the
+# closing transition when the film sound stops early.
+VIDEO_RENDER_VERSION = 3
 
 
 def _ratio(text: str, fallback: str) -> Fraction:
@@ -34,21 +35,14 @@ def display_size(video: VideoInfo) -> tuple[int, int]:
     return _even(video.width * sar), _even(video.height)
 
 
-def _fades(
-    duration: float,
-    fade_s: float,
-    *,
-    fade_in: bool,
-    fade_out: bool,
-    fade_out_s: float | None = None,
-) -> list[str]:
-    steps = []
+def _fades(duration: float, fade_s: float, *, fade_in: bool, fade_out: bool) -> list[str]:
     fade = min(fade_s, duration / 2)
-    if fade_in and fade > 0:
-        steps.append(f"fade=t=in:st=0:d={ffmpeg_seconds(fade)}")
-    out = min(fade_s if fade_out_s is None else fade_out_s, duration / 2)
-    if fade_out and out > 0:
-        steps.append(f"fade=t=out:st={ffmpeg_seconds(duration - out)}:d={ffmpeg_seconds(out)}")
+    if fade <= 0:
+        return []
+    d = ffmpeg_seconds(fade)
+    steps = [f"fade=t=in:st=0:d={d}"] if fade_in else []
+    if fade_out:
+        steps.append(f"fade=t=out:st={ffmpeg_seconds(duration - fade)}:d={d}")
     return steps
 
 
@@ -72,13 +66,11 @@ def video_filter(video: VideoInfo, layout: ClipLayout, transition_video: bool = 
         "[0:V:0]setpts=PTS-STARTPTS",  # V: skips cover art
         f"scale={width}:{height}",
         *common,
-        f"trim=duration={ffmpeg_seconds(layout.clip_s)}",
-        *_fades(
-            layout.clip_s, layout.fade_s, fade_in=True, fade_out=True, fade_out_s=layout.fade_out
-        ),
+        f"trim=duration={ffmpeg_seconds(layout.picture_s)}",
+        *_fades(layout.picture_s, layout.fade_s, fade_in=True, fade_out=True),
     ]
     before = layout.film_offset
-    after = max(layout.total_s - layout.film_offset - layout.clip_s, 0.0)
+    after = max(layout.total_s - layout.film_offset - layout.picture_s, 0.0)
     if not transition_video or (before <= 0 and after <= 0):
         if before > 0 or after > 0:
             film.append(
@@ -143,7 +135,7 @@ def render_video(
         run_ffmpeg(
             [
                 "-ss", ffmpeg_seconds(layout.film_start),
-                "-t", ffmpeg_seconds(layout.clip_s),
+                "-t", ffmpeg_seconds(layout.picture_s),
                 "-i", str(film),
                 "-i", str(audio_wav),
                 *looped,

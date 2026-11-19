@@ -172,7 +172,7 @@ def _render_settings(s: Settings, film: Path) -> dict:
         "sentence_gap_s": s.sentence_gap_s,
         "pad_before_s": s.pad_before_s,
         "pad_after_s": s.pad_after_s,
-        "end_pause": 1,  # pause after the last word even when the next line follows soon
+        "end_pause": 2,  # pause after the last word even when the next line follows soon
         "whisper_model": s.whisper_model,
     }
 
